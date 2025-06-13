@@ -1,0 +1,847 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Flipbook</title>
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background: #5c4033;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+        }
+
+        .flipbook-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .book-wrapper {
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex: 1;
+            width: 100%;
+            overflow: hidden;
+            transform-origin: center center;
+            transition: transform 0.3s ease;
+        }
+
+        #flipbook {
+            margin: 0 auto;
+            position: relative;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+
+        .page {
+            background: white;
+            border: 1px solid #ddd;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            position: relative;
+            overflow: hidden;
+            cursor: pointer;
+        }
+
+        .page img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+            border-radius: 4px;
+            pointer-events: none;
+        }
+
+        .controls {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 20px;
+            z-index: 1000;
+        }
+
+        .control-btn {
+            background: rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            padding: 12px 24px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 1em;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+        }
+
+        .control-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .control-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .zoom-controls {
+            position: fixed;
+            top: 30px;
+            right: 30px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            z-index: 1000;
+        }
+
+        .zoom-btn {
+            background: rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 1.5em;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+        }
+
+        .zoom-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: scale(1.1);
+        }
+
+        .zoom-level {
+            background: rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 15px;
+            font-size: 0.9em;
+            text-align: center;
+            backdrop-filter: blur(10px);
+            min-width: 60px;
+        }
+
+        .page-info {
+            position: fixed;
+            top: 30px;
+            left: 30px;
+            background: rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            padding: 12px 20px;
+            border-radius: 20px;
+            font-size: 1em;
+            backdrop-filter: blur(10px);
+            z-index: 1000;
+        }
+
+        /* Turn.js specific styles */
+        .turn-page {
+            background-color: white;
+            background-size: 100% 100%;
+        }
+
+        .hard {
+            background: #ccc !important;
+            color: #333;
+        }
+
+        /* Loading indicator */
+        .loading {
+            display: none;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #999;
+            font-size: 0.9em;
+        }
+
+        .page.loading .loading {
+            display: block;
+        }
+
+        /* Debug info (can be removed in production) */
+        .debug {
+            position: fixed;
+            bottom: 100px;
+            left: 30px;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            font-size: 0.8em;
+            max-width: 300px;
+            display: none;
+        }
+
+        /* Mobile touch improvements */
+        @media (max-width: 768px) {
+            .controls {
+                bottom: 20px;
+                gap: 15px;
+            }
+            
+            .control-btn {
+                padding: 10px 20px;
+                font-size: 0.9em;
+            }
+            
+            .zoom-controls {
+                top: 20px;
+                right: 20px;
+                gap: 8px;
+            }
+            
+            .zoom-btn {
+                width: 45px;
+                height: 45px;
+                font-size: 1.3em;
+            }
+            
+            .page-info {
+                top: 20px;
+                left: 20px;
+                padding: 10px 16px;
+                font-size: 0.9em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="flipbook-container">
+        <div class="page-info" id="pageInfo">Page 1 of 32</div>
+        
+       <div class="zoom-controls">
+    <button class="zoom-btn" id="zoomInBtn">+</button>
+    <div class="zoom-level" id="zoomLevel">100%</div>
+    <button class="zoom-btn" id="zoomOutBtn">-</button>
+    <button class="zoom-btn" id="resetBtn">⌂</button>
+</div>
+        
+        <div class="book-wrapper" id="bookWrapper">
+            <div id="flipbook">
+                <!-- Page 1 - Cover -->
+                <div class="page">
+                    <div class="loading">Loading...</div>
+                    <img src="images/Page-01.png" alt="Cover Page">
+                </div>
+                
+                <!-- Page 2 -->
+                <div class="page">
+                    <div class="loading">Loading...</div>
+                    <img src="images/Page-02.png" alt="Page 2">
+                </div>
+                
+                <!-- Page 3 -->
+                <div class="page">
+                    <div class="loading">Loading...</div>
+                    <img src="images/Page-03.png" alt="Page 3">
+                </div>
+                
+                <!-- Page 4 -->
+                <div class="page">
+                    <div class="loading">Loading...</div>
+                    <img src="images/Page-04.png" alt="Page 4">
+                </div>
+                
+                <!-- Page 5 -->
+                <div class="page">
+                    <div class="loading">Loading...</div>
+                    <img src="images/Page-05.png" alt="Page 5">
+                </div>
+                
+                <!-- Page 6 -->
+                <div class="page">
+                    <div class="loading">Loading...</div>
+                    <img src="images/Page-06.png" alt="Page 6">
+                </div>
+                
+                <!-- Page 7 -->
+                <div class="page">
+                    <div class="loading">Loading...</div>
+                    <img src="images/Page-07.png" alt="Page 7" loading="lazy">
+                </div>
+                
+                <!-- Page 8 -->
+                <div class="page">
+                    <div class="loading">Loading...</div>
+                    <img src="images/Page-08.png" alt="Page 8">
+                </div>
+                
+                <!-- Page 9 -->
+                <div class="page">
+                    <div class="loading">Loading...</div>
+                    <img src="images/Page-09.png" alt="Page 9">
+                </div>
+                
+                <!-- Page 10 -->
+                <div class="page">
+                    <div class="loading">Loading...</div>
+                    <img src="images/Page-10.png" alt="Page 10">
+                </div>
+                
+                <!-- Page 11 -->
+                <div class="page">
+                    <div class="loading">Loading...</div>
+                    <img src="images/Page-11.png" alt="Page 11">
+                </div>
+                
+                <!-- Page 12 -->
+                <div class="page">
+                    <div class="loading">Loading...</div>
+                    <img src="images/Page-12.png" alt="Page 12">
+                </div>
+                
+                <!-- Page 13 -->
+                <div class="page">
+                    <div class="loading">Loading...</div>
+                    <img src="images/Page-13.png" alt="Page 13">
+                </div>
+                
+                <!-- Page 14 -->
+                <div class="page">
+                    <div class="loading">Loading...</div>
+                    <img src="images/Page-14.png" alt="Page 14">
+                </div>
+                
+                <!-- Page 15 -->
+                <div class="page">
+                    <div class="loading">Loading...</div>
+                    <img src="images/Page-15.png" alt="Page 15">
+                </div>
+                
+                <!-- Page 16 -->
+                <div class="page">
+                    <div class="loading">Loading...</div>
+                    <img src="images/Page-16.png" alt="Page 16">
+                </div>
+                
+                <!-- Page 17 -->
+                <div class="page">
+                    <div class="loading">Loading...</div>
+                    <img src="images/Page-17.png" alt="Page 17">
+                </div>
+                
+                <!-- Page 18 -->
+                <div class="page">
+                    <div class="loading">Loading...</div>
+                    <img src="images/Page-18.png" alt="Page 18">
+                </div>
+                
+                <!-- Page 19 -->
+                <div class="page">
+                    <div class="loading">Loading...</div>
+                    <img src="images/Page-19.png" alt="Page 19">
+                </div>
+                
+                <!-- Page 20 -->
+                <div class="page">
+                    <div class="loading">Loading...</div>
+                    <img src="images/Page-20.png" alt="Page 20">
+                </div>
+                
+                <!-- Page 21 -->
+                <div class="page">
+                    <div class="loading">Loading...</div>
+                    <img src="images/Page-21.png" alt="Page 21">
+                </div>
+                
+                <!-- Page 22 -->
+                <div class="page">
+                    <div class="loading">Loading...</div>
+                    <img src="images/Page-22.png" alt="Page 22">
+                </div>
+                
+                <!-- Page 23 -->
+                <div class="page">
+                    <div class="loading">Loading...</div>
+                    <img src="images/Page-23.png" alt="Page 23">
+                </div>
+                
+                <!-- Page 24 -->
+                <div class="page">
+                    <div class="loading">Loading...</div>
+                    <img src="images/Page-24.png" alt="Page 24">
+                </div>
+                
+                <!-- Page 25 -->
+                <div class="page">
+                    <div class="loading">Loading...</div>
+                    <img src="images/Page-25.png" alt="Page 25">
+                </div>
+                
+                <!-- Page 26 -->
+                <div class="page">
+                    <div class="loading">Loading...</div>
+                    <img src="images/Page-26.png" alt="Page 26">
+                </div>
+                
+                <!-- Page 27 -->
+                <div class="page">
+                    <div class="loading">Loading...</div>
+                    <img src="images/Page-27.png" alt="Page 27">
+                </div>
+                
+                <!-- Page 28 -->
+                <div class="page">
+                    <div class="loading">Loading...</div>
+                    <img src="images/Page-28.png" alt="Page 28">
+                </div>
+                
+                <!-- Page 29 -->
+                <div class="page">
+                    <div class="loading">Loading...</div>
+                    <img src="images/Page-29.png" alt="Page 29">
+                </div>
+                
+                <!-- Page 30 -->
+                <div class="page">
+                    <div class="loading">Loading...</div>
+                    <img src="images/Page-30.png" alt="Page 30">
+                </div>
+                
+                <!-- Page 31 -->
+                <div class="page">
+                    <div class="loading">Loading...</div>
+                    <img src="images/Page-31.png" alt="Page 31">
+                </div>
+                
+                <!-- Page 32 - Back Cover -->
+                <div class="page">
+                    <div class="loading">Loading...</div>
+                    <img src="images/Page-32.png" alt="Back Cover">
+                </div>
+            </div>
+        </div>
+        
+        <div class="controls">
+            <button class="control-btn" id="prevBtn">← Previous</button>
+            <button class="control-btn" id="nextBtn">Next →</button>
+        </div>
+    </div>
+
+    <!-- Debug info (remove in production) -->
+    <div class="debug" id="debugInfo"></div>
+
+    <!-- Turn.js Library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/turn.js/3/turn.min.js"></script>
+    
+    <script>
+        $(document).ready(function() {
+            // Variables for responsive sizing and zoom
+            let currentZoom = 1;
+            let currentPage = 1;
+            const totalPages = $("#flipbook .page").length;
+            let debugMode = false; // Set to true for debugging
+
+             // Pan/drag variables
+    let isPanning = false;
+    let panStartX = 0;
+    let panStartY = 0;
+    let panOffsetX = 0;
+    let panOffsetY = 0;
+            
+            // Debug function
+            function debug(message) {
+                if (debugMode) {
+                    console.log(message);
+                    $("#debugInfo").show().append(message + "<br>");
+                }
+            }
+            
+            // Calculate optimal dimensions for full screen
+         function calculateOptimalSize() {
+    // Convert 8.3 x 11.7 inches to pixels (assuming 96 DPI - standard web resolution)
+    const pageWidthInches = 8.3;
+    const pageHeightInches = 11.7;
+    const dpi = 96; // Standard web DPI
+    
+    const exactPageWidth = pageWidthInches * dpi; // 796.8 pixels
+    const exactPageHeight = pageHeightInches * dpi; // 1123.2 pixels
+    
+    // Scale down if needed to fit screen
+    const windowWidth = $(window).width();
+    const windowHeight = $(window).height();
+    
+    const maxWidth = windowWidth * 0.9;
+    const maxHeight = windowHeight * 0.8;
+    
+    let scale = 1;
+    if (exactPageWidth * 2 > maxWidth) { // *2 because flipbook shows 2 pages
+        scale = maxWidth / (exactPageWidth * 2);
+    }
+    if (exactPageHeight * scale > maxHeight) {
+        scale = maxHeight / exactPageHeight;
+    }
+    
+    return {
+        width: Math.floor(exactPageWidth * 2 * scale), // *2 for spread
+        height: Math.floor(exactPageHeight * scale)
+    };
+}
+            
+            // Initialize the flipbook with calculated dimensions
+            function initializeFlipbook() {
+                const size = calculateOptimalSize();
+                
+                $("#flipbook").turn({
+                    width: size.width,
+                    height: size.height,
+                    elevation: 50,
+                    gradients: true,
+                    autoCenter: true,
+                    duration: 1000,
+                    when: {
+                        turned: function(event, page, view) {
+                            updatePageInfo();
+                        }
+                    }
+                });
+                
+                // Set individual page dimensions
+                $(".page").css({
+                    width: size.width / 2,
+                    height: size.height
+                });
+                
+                updatePageInfo();
+            }
+            
+            // Update page info display
+            function updatePageInfo() {
+                currentPage = $("#flipbook").turn("page");
+                $("#pageInfo").text(`Page ${currentPage} of ${totalPages}`);
+                
+                // Update button states
+                $("#prevBtn").prop("disabled", currentPage === 1);
+                $("#nextBtn").prop("disabled", currentPage === totalPages);
+            }
+            
+            // Zoom functionality
+           function updateZoom() {
+    const bookWrapper = $("#bookWrapper");
+    
+    // Reset pan when zoom changes
+    if (currentZoom === 1) {
+        panOffsetX = 0;
+        panOffsetY = 0;
+    }
+    
+    bookWrapper.css("transform", `scale(${currentZoom}) translate(${panOffsetX}px, ${panOffsetY}px)`);
+    $("#zoomLevel").text(`${Math.round(currentZoom * 100)}%`);
+    
+  // Update zoom button states
+$("#zoomOutBtn").prop("disabled", currentZoom <= 0.5);
+$("#zoomInBtn").prop("disabled", currentZoom >= 2);
+$("#resetBtn").prop("disabled", currentZoom === 1 && panOffsetX === 0 && panOffsetY === 0);
+    
+    // Enable/disable panning based on zoom level
+    if (currentZoom > 1) {
+        $("#bookWrapper").css("cursor", "grab");
+    } else {
+        $("#bookWrapper").css("cursor", "default");
+    }
+}
+            
+            // Improved image loading with better error handling
+            function setupImageLoading() {
+                $(".page").each(function(index) {
+                    const page = $(this);
+                    const img = page.find('img');
+                    const loading = page.find('.loading');
+                    const imageSrc = img.attr('src');
+                    
+                    debug(`Setting up page ${index + 1} with image: ${imageSrc}`);
+                    
+                    // Show loading initially
+                    page.addClass('loading');
+                    img.hide();
+                    
+                    // Create a new image object to test loading
+                    const testImg = new Image();
+                    
+                    testImg.onload = function() {
+                        debug(`✓ Image loaded successfully: ${imageSrc}`);
+                        page.removeClass('loading');
+                        img.show();
+                    };
+                    
+                    testImg.onerror = function() {
+                        debug(`✗ Image failed to load: ${imageSrc}`);
+                        page.removeClass('loading');
+                        img.hide();
+                    };
+                    
+                    // Start loading the image
+                    testImg.src = imageSrc;
+                    
+                    // Timeout fallback (in case the image takes too long)
+                    setTimeout(function() {
+                        if (page.hasClass('loading')) {
+                            debug(`⚠ Image load timeout: ${imageSrc}`);
+                            page.removeClass('loading');
+                        }
+                    }, 5000); // 5 second timeout
+                });
+            }
+            
+            // Event handlers for navigation buttons
+            $("#prevBtn").click(function() {
+                $("#flipbook").turn("previous");
+            });
+            
+            $("#nextBtn").click(function() {
+                $("#flipbook").turn("next");
+            });
+            
+            // Event handlers for zoom buttons
+            // Event handlers for zoom buttons
+$("#zoomInBtn").click(function() {
+    if (currentZoom < 2) {
+        currentZoom = Math.min(2, currentZoom + 0.1);
+        updateZoom();
+    }
+});
+
+$("#zoomOutBtn").click(function() {
+    if (currentZoom > 0.5) {
+        currentZoom = Math.max(0.5, currentZoom - 0.1);
+        updateZoom();
+    }
+});
+
+// Pan functionality when zoomed in
+$("#bookWrapper").on('mousedown', function(e) {
+    if (currentZoom > 1) {
+        isPanning = true;
+        panStartX = e.clientX - panOffsetX;
+        panStartY = e.clientY - panOffsetY;
+        $(this).css("cursor", "grabbing");
+        e.preventDefault();
+    }
+});
+
+$(document).on('mousemove', function(e) {
+    if (isPanning && currentZoom > 1) {
+        panOffsetX = e.clientX - panStartX;
+        panOffsetY = e.clientY - panStartY;
+        
+        // Limit panning to reasonable bounds
+        const maxPan = 200 * currentZoom;
+        panOffsetX = Math.max(-maxPan, Math.min(maxPan, panOffsetX));
+        panOffsetY = Math.max(-maxPan, Math.min(maxPan, panOffsetY));
+        
+        $("#bookWrapper").css("transform", `scale(${currentZoom}) translate(${panOffsetX}px, ${panOffsetY}px)`);
+    }
+});
+
+$(document).on('mouseup', function() {
+    if (isPanning) {
+        isPanning = false;
+        $("#bookWrapper").css("cursor", currentZoom > 1 ? "grab" : "default");
+    }
+});
+
+// Touch panning for mobile
+$("#bookWrapper").on('touchstart', function(e) {
+    if (currentZoom > 1 && e.originalEvent.touches.length === 1) {
+        isPanning = true;
+        panStartX = e.originalEvent.touches[0].clientX - panOffsetX;
+        panStartY = e.originalEvent.touches[0].clientY - panOffsetY;
+        e.preventDefault();
+    }
+});
+
+$(document).on('touchmove', function(e) {
+    if (isPanning && currentZoom > 1 && e.originalEvent.touches.length === 1) {
+        panOffsetX = e.originalEvent.touches[0].clientX - panStartX;
+        panOffsetY = e.originalEvent.touches[0].clientY - panStartY;
+        
+        // Limit panning to reasonable bounds
+        const maxPan = 200 * currentZoom;
+        panOffsetX = Math.max(-maxPan, Math.min(maxPan, panOffsetX));
+        panOffsetY = Math.max(-maxPan, Math.min(maxPan, panOffsetY));
+        
+        $("#bookWrapper").css("transform", `scale(${currentZoom}) translate(${panOffsetX}px, ${panOffsetY}px)`);
+        e.preventDefault();
+    }
+});
+
+$(document).on('touchend', function() {
+    isPanning = false;
+});
+            
+            $("#zoomOutBtn").click(function() {
+                if (currentZoom > 0.5) {
+                    currentZoom = Math.max(0.5, currentZoom - 0.1);
+                    updateZoom();
+                }
+            });
+
+            $("#resetBtn").click(function() {
+    currentZoom = 1;
+    panOffsetX = 0;
+    panOffsetY = 0;
+    updateZoom();
+});
+            
+            // Click to flip functionality
+$("#flipbook").on('click', '.page', function(e) {
+    // Don't flip if we're panning
+    if (isPanning) {
+        return;
+    }
+    
+    const page = $(this);
+    const pageRect = page[0].getBoundingClientRect();
+    const clickX = e.clientX - pageRect.left;
+    const pageWidth = pageRect.width;
+    
+    // Adjust clickable area based on zoom level
+    let edgeThreshold;
+    if (currentZoom > 1) {
+        // When zoomed in, only the edges (20% on each side) are clickable
+        edgeThreshold = pageWidth * 0.2;
+    } else {
+        // When not zoomed, the entire half of the page is clickable
+        edgeThreshold = pageWidth * 0.5;
+    }
+    
+    // Determine if click is on left or right edge
+    if (clickX < edgeThreshold) {
+        // Left edge - go to previous page
+        $("#flipbook").turn("previous");
+    } else if (clickX > pageWidth - edgeThreshold) {
+        // Right edge - go to next page
+        $("#flipbook").turn("next");
+    }
+    // Middle area (when zoomed) doesn't flip pages
+});
+            
+            // Keyboard navigation
+            $(document).keydown(function(e) {
+                if (e.keyCode === 37) { // Left arrow
+                    $("#flipbook").turn("previous");
+                } else if (e.keyCode === 39) { // Right arrow
+                    $("#flipbook").turn("next");
+                } else if (e.keyCode === 187 || e.keyCode === 107) { // + key
+                    e.preventDefault();
+                    $("#zoomInBtn").click();
+                } else if (e.keyCode === 189 || e.keyCode === 109) { // - key
+                    e.preventDefault();
+                    $("#zoomOutBtn").click();
+                } else if (e.keyCode === 68 && e.ctrlKey) { // Ctrl+D for debug
+                    e.preventDefault();
+                    debugMode = !debugMode;
+                    if (debugMode) {
+                        $("#debugInfo").show();
+                        debug("Debug mode enabled");
+                    } else {
+                        $("#debugInfo").hide();
+                    }
+                }
+            });
+            
+            // Touch/swipe functionality
+            let touchStartX = 0;
+            let touchStartY = 0;
+            let touchEndX = 0;
+            let touchEndY = 0;
+            
+            $("#flipbook").on('touchstart', function(e) {
+                touchStartX = e.originalEvent.touches[0].clientX;
+                touchStartY = e.originalEvent.touches[0].clientY;
+            });
+            
+            $("#flipbook").on('touchend', function(e) {
+                touchEndX = e.originalEvent.changedTouches[0].clientX;
+                touchEndY = e.originalEvent.changedTouches[0].clientY;
+                
+                const deltaX = touchEndX - touchStartX;
+                const deltaY = touchEndY - touchStartY;
+                const minSwipeDistance = 50;
+                
+                // Check if it's a horizontal swipe (not vertical scroll)
+                if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > minSwipeDistance) {
+                    if (deltaX > 0) {
+                        // Swipe right - previous page
+                        $("#flipbook").turn("previous");
+                    } else {
+                        // Swipe left - next page
+                        $("#flipbook").turn("next");
+                    }
+                }
+            });
+            
+            // Responsive handling
+            function resizeFlipbook() {
+                const size = calculateOptimalSize();
+                $("#flipbook").turn("size", size.width, size.height);
+                
+                $(".page").css({
+                    width: size.width / 2,
+                    height: size.height
+                });
+            }
+            
+            // Handle window resize
+            $(window).resize(function() {
+                resizeFlipbook();
+            });
+            
+            // Mouse wheel zoom (optional)
+            $("#flipbook").on('wheel', function(e) {
+                if (e.ctrlKey) {
+                    e.preventDefault();
+                    if (e.originalEvent.deltaY < 0) {
+                        // Zoom in
+                        $("#zoomInBtn").click();
+                    } else {
+                        // Zoom out
+                        $("#zoomOutBtn").click();
+                    }
+                }
+            });
+            
+            // Initialize everything
+            initializeFlipbook();
+            updateZoom();
+            setupImageLoading();
+            
+            debug("Flipbook initialized");
+        });
+    </script>
+</body>
+</html>
