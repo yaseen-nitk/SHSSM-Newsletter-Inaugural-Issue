@@ -345,7 +345,7 @@
         $(document).ready(function() {
             // Configuration
             const TOTAL_PAGES = 32;
-            const PRELOAD_RANGE = 2;
+            const PRELOAD_RANGE = 4;
             const IMAGE_BASE_PATH = 'images/';
             const IMAGE_EXTENSION = '.png';
             
@@ -846,7 +846,7 @@
             updateZoom();
             
             // Start with loading the first few pages
-            preloadPages(1);
+            preloadPages(1); loadImage(2); loadImage(3); loadImage(4); loadImage(5);
             
             debug("Optimized flipbook initialized");
         });
