@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0">
     <title>SHSSM Newsletter Inaugural Issue</title>
     
     <style>
@@ -10,6 +10,13 @@
             margin: 0;
             padding: 0;
             box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            -khtml-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
         }
 
         body {
@@ -21,6 +28,9 @@
             justify-content: center;
             align-items: center;
             overflow: hidden;
+            position: fixed;
+            width: 100%;
+            height: 100%;
         }
 
         .flipbook-container {
@@ -31,7 +41,7 @@
             flex-direction: column;
             justify-content: center;
             align-items: center;
-            padding: 20px;
+            padding: 10px;
         }
 
         .book-wrapper {
@@ -44,12 +54,13 @@
             overflow: hidden;
             transform-origin: center center;
             transition: transform 0.3s ease;
+            touch-action: manipulation;
         }
 
         #flipbook {
             margin: 0 auto;
             position: relative;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
         }
 
         .page {
@@ -59,11 +70,11 @@
             flex-direction: column;
             justify-content: center;
             align-items: center;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
             position: relative;
             overflow: hidden;
             cursor: pointer;
-            transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+            transition: all 0.3s ease;
             transform-origin: center center;
         }
 
@@ -76,63 +87,61 @@
             transition: opacity 0.3s ease;
         }
         
-        /* Enhanced hover effects for page edges */
+        /* Simplified hover effects for mobile */
         .page.hover-left {
-            transform: perspective(1000px) rotateY(2deg) translateX(3px) translateZ(5px);
-            box-shadow: 3px 6px 12px rgba(0, 0, 0, 0.25);
+            transform: translateX(2px) scale(1.01);
+            box-shadow: 2px 4px 8px rgba(0, 0, 0, 0.25);
             z-index: 5;
         }
         
         .page.hover-right {
-            transform: perspective(1000px) rotateY(-2deg) translateX(-3px) translateZ(5px);
-            box-shadow: -3px 6px 12px rgba(0, 0, 0, 0.25);
+            transform: translateX(-2px) scale(1.01);
+            box-shadow: -2px 4px 8px rgba(0, 0, 0, 0.25);
             z-index: 5;
         }
         
-        /* Enhanced drag-to-flip tilting styles with better feedback */
+        /* Mobile-optimized drag feedback */
         .page.tilting-left {
-            transform: perspective(1000px) rotateY(8deg) translateX(15px) translateZ(10px);
-            box-shadow: 8px 8px 20px rgba(0, 0, 0, 0.35);
+            transform: translateX(8px) scale(1.02);
+            box-shadow: 4px 6px 12px rgba(0, 0, 0, 0.3);
             z-index: 15;
             filter: brightness(1.05);
         }
         
         .page.tilting-right {
-            transform: perspective(1000px) rotateY(-8deg) translateX(-15px) translateZ(10px);
-            box-shadow: -8px 8px 20px rgba(0, 0, 0, 0.35);
+            transform: translateX(-8px) scale(1.02);
+            box-shadow: -4px 6px 12px rgba(0, 0, 0, 0.3);
             z-index: 15;
             filter: brightness(1.05);
         }
         
         .page.tilting-strong-left {
-            transform: perspective(1000px) rotateY(20deg) translateX(30px) translateZ(20px);
-            box-shadow: 15px 12px 30px rgba(0, 0, 0, 0.5);
+            transform: translateX(15px) scale(1.05);
+            box-shadow: 8px 8px 20px rgba(0, 0, 0, 0.4);
             z-index: 20;
             filter: brightness(1.1);
         }
         
         .page.tilting-strong-right {
-            transform: perspective(1000px) rotateY(-20deg) translateX(-30px) translateZ(20px);
-            box-shadow: -10px 12px 30px rgba(0, 0, 0, 0.5);
+            transform: translateX(-15px) scale(1.05);
+            box-shadow: -8px 8px 20px rgba(0, 0, 0, 0.4);
             z-index: 20;
             filter: brightness(1.1);
         }
-
-
 
         .book-wrapper.grabbing,
         .book-wrapper.grabbing .page {
             cursor: grabbing !important;
         }
 
-        /* Improved hover zones for better edge detection */
+        /* Touch-friendly hover zones */
         .page::before,
         .page::after {
             content: '';
             position: absolute;
             top: 0;
             bottom: 0;
-            width: 50px;
+            width: 60px;
             z-index: 1;
             pointer-events: none;
             transition: background 0.3s ease;
@@ -140,110 +149,108 @@
 
         .page::before {
             left: 0;
-            background: linear-gradient(to right, rgba(0, 0, 0, 0.03), transparent);
+            background: linear-gradient(to right, rgba(0, 0, 0, 0.02), transparent);
         }
 
         .page::after {
             right: 0;
-            background: linear-gradient(to left, rgba(0, 0, 0, 0.03), transparent);
-        }
-
-        .page.hover-left::after {
-            background: linear-gradient(to left, rgba(0, 0, 0, 0.08), transparent);
-        }
-
-        .page.hover-right::before {
-            background: linear-gradient(to right, rgba(0, 0, 0, 0.08), transparent);
+            background: linear-gradient(to left, rgba(0, 0, 0, 0.02), transparent);
         }
 
         .controls {
             position: fixed;
-            bottom: 30px;
+            bottom: 20px;
             left: 50%;
             transform: translateX(-50%);
             display: flex;
             justify-content: center;
             align-items: center;
-            gap: 20px;
+            gap: 15px;
             z-index: 1000;
         }
 
         .control-btn {
-            background: rgba(255, 255, 255, 0.2);
-            border: 1px solid rgba(255, 255, 255, 0.3);
+            background: rgba(255, 255, 255, 0.25);
+            border: 1px solid rgba(255, 255, 255, 0.4);
             color: white;
-            padding: 12px 24px;
+            padding: 14px 24px;
             border-radius: 25px;
             cursor: pointer;
             font-size: 1em;
             transition: all 0.3s ease;
             backdrop-filter: blur(10px);
+            touch-action: manipulation;
+            min-width: 80px;
+            min-height: 48px;
         }
 
-        .control-btn:hover {
-            background: rgba(255, 255, 255, 0.3);
-            transform: translateY(-2px);
+        .control-btn:hover,
+        .control-btn:active {
+            background: rgba(255, 255, 255, 0.35);
+            transform: translateY(-1px);
             box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
         }
 
         .control-btn:disabled {
-            opacity: 0.5;
+            opacity: 0.4;
             cursor: not-allowed;
         }
 
         .zoom-controls {
             position: fixed;
-            top: 30px;
-            right: 30px;
+            top: 20px;
+            right: 15px;
             display: flex;
             flex-direction: column;
-            gap: 10px;
+            gap: 8px;
             z-index: 1000;
         }
 
         .zoom-btn {
-            background: rgba(255, 255, 255, 0.2);
-            border: 1px solid rgba(255, 255, 255, 0.3);
+            background: rgba(255, 255, 255, 0.25);
+            border: 1px solid rgba(255, 255, 255, 0.4);
             color: white;
-            width: 50px;
-            height: 50px;
+            width: 48px;
+            height: 48px;
             border-radius: 50%;
             cursor: pointer;
-            font-size: 1.5em;
+            font-size: 1.4em;
             display: flex;
             justify-content: center;
             align-items: center;
             transition: all 0.3s ease;
             backdrop-filter: blur(10px);
+            touch-action: manipulation;
         }
 
-        .zoom-btn:hover {
-            background: rgba(255, 255, 255, 0.3);
-            transform: scale(1.1);
+        .zoom-btn:hover,
+        .zoom-btn:active {
+            background: rgba(255, 255, 255, 0.35);
+            transform: scale(1.05);
         }
 
         .zoom-level {
-            background: rgba(255, 255, 255, 0.2);
-            border: 1px solid rgba(255, 255, 255, 0.3);
+            background: rgba(255, 255, 255, 0.25);
+            border: 1px solid rgba(255, 255, 255, 0.4);
             color: white;
             padding: 8px 12px;
             border-radius: 15px;
-            font-size: 0.9em;
+            font-size: 0.85em;
             text-align: center;
             backdrop-filter: blur(10px);
-            min-width: 60px;
+            min-width: 55px;
         }
 
         .page-info {
             position: fixed;
-            top: 30px;
-            left: 30px;
-            background: rgba(255, 255, 255, 0.2);
-            border: 1px solid rgba(255, 255, 255, 0.3);
+            top: 20px;
+            left: 15px;
+            background: rgba(255, 255, 255, 0.25);
+            border: 1px solid rgba(255, 255, 255, 0.4);
             color: white;
-            padding: 12px 20px;
+            padding: 10px 16px;
             border-radius: 20px;
-            font-size: 1em;
+            font-size: 0.9em;
             backdrop-filter: blur(10px);
             z-index: 1000;
         }
@@ -254,7 +261,7 @@
             background-size: 100% 100%;
         }
 
-        /* Enhanced loading indicator */
+        /* Loading indicator */
         .loading-indicator {
             position: absolute;
             top: 50%;
@@ -269,10 +276,10 @@
         }
 
         .spinner {
-            width: 40px;
-            height: 40px;
-            border: 3px solid #f3f3f3;
-            border-top: 3px solid #666;
+            width: 30px;
+            height: 30px;
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid #666;
             border-radius: 50%;
             animation: spin 1s linear infinite;
         }
@@ -331,41 +338,82 @@
             display: none;
         }
 
-        /* Mobile touch improvements */
+        /* Mobile-specific optimizations */
         @media (max-width: 768px) {
+            .flipbook-container {
+                padding: 5px;
+            }
+            
             .controls {
-                bottom: 20px;
-                gap: 15px;
+                bottom: 15px;
+                gap: 12px;
             }
             
             .control-btn {
-                padding: 10px 20px;
+                padding: 12px 20px;
                 font-size: 0.9em;
+                min-height: 44px;
             }
             
             .zoom-controls {
-                top: 20px;
-                right: 20px;
-                gap: 8px;
+                top: 15px;
+                right: 10px;
+                gap: 6px;
             }
             
             .zoom-btn {
-                width: 45px;
-                height: 45px;
-                font-size: 1.3em;
+                width: 44px;
+                height: 44px;
+                font-size: 1.2em;
             }
             
             .page-info {
-                top: 20px;
-                left: 20px;
-                padding: 10px 16px;
-                font-size: 0.9em;
+                top: 15px;
+                left: 10px;
+                padding: 8px 14px;
+                font-size: 0.85em;
             }
 
-            .drag-indicator {
-                width: 50px;
-                height: 50px;
-                font-size: 20px;
+            .zoom-level {
+                font-size: 0.8em;
+                padding: 6px 10px;
+            }
+        }
+
+        /* Landscape mobile adjustments */
+        @media (max-width: 768px) and (orientation: landscape) {
+            .controls {
+                bottom: 10px;
+            }
+            
+            .zoom-controls {
+                top: 10px;
+                right: 8px;
+            }
+            
+            .page-info {
+                top: 10px;
+                left: 8px;
+            }
+        }
+
+        /* Very small screens */
+        @media (max-width: 480px) {
+            .control-btn {
+                padding: 10px 16px;
+                font-size: 0.85em;
+                min-height: 40px;
+            }
+            
+            .zoom-btn {
+                width: 40px;
+                height: 40px;
+                font-size: 1.1em;
+            }
+            
+            .page-info {
+                padding: 6px 12px;
+                font-size: 0.8em;
             }
         }
     </style>
@@ -404,10 +452,14 @@
     $(document).ready(function() {
         // Configuration
         const TOTAL_PAGES = 32;
-        const PRELOAD_RANGE = 4;
-        const IMAGE_BASE_PATH = 'images/'; // IMPORTANT: Make sure this path is correct
+        const PRELOAD_RANGE = 3; // Reduced for mobile performance
+        const IMAGE_BASE_PATH = 'images/';
         const IMAGE_EXTENSION = '.png';
-        const EDGE_HOVER_THRESHOLD = 60; // pixels from edge to trigger hover effect
+        const EDGE_HOVER_THRESHOLD = 80; // Larger for touch devices
+        
+        // Device detection
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        const isTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
         
         // State variables
         let currentZoom = 1;
@@ -420,6 +472,11 @@
         let isDraggingToFlip = false;
         let dragStartX, dragCurrentX;
         let dragStartTime;
+        
+        // Touch handling
+        let touchStartX = 0;
+        let touchStartY = 0;
+        let touchMoved = false;
         
         // Image loading management
         const loadedImages = new Map();
@@ -438,6 +495,16 @@
         const $zoomOutBtn = $("#zoomOutBtn");
         const $resetBtn = $("#resetBtn");
         const $zoomLevel = $("#zoomLevel");
+
+        // --- Utility Functions ---
+
+        function getEventX(e) {
+            return e.type.includes('touch') ? e.touches[0]?.clientX || e.changedTouches[0]?.clientX : e.clientX;
+        }
+
+        function getEventY(e) {
+            return e.type.includes('touch') ? e.touches[0]?.clientY || e.changedTouches[0]?.clientY : e.clientY;
+        }
 
         // --- Page and Image Loading ---
 
@@ -507,11 +574,15 @@
             const viewportHeight = $(window).height();
             const aspectRatio = 8.3 / 11.7;
 
-            let bookWidth = viewportWidth * 0.9;
+            // More conservative sizing for mobile
+            const widthMultiplier = isMobile ? 0.95 : 0.9;
+            const heightMultiplier = isMobile ? 0.8 : 0.9;
+
+            let bookWidth = viewportWidth * widthMultiplier;
             let bookHeight = bookWidth / (2 * aspectRatio);
 
-            if (bookHeight > viewportHeight * 0.9) {
-                bookHeight = viewportHeight * 0.9;
+            if (bookHeight > viewportHeight * heightMultiplier) {
+                bookHeight = viewportHeight * heightMultiplier;
                 bookWidth = bookHeight * (2 * aspectRatio);
             }
 
@@ -523,10 +594,11 @@
             $flipbook.turn({
                 width: size.width,
                 height: size.height,
-                elevation: 50,
-                gradients: true,
+                elevation: isMobile ? 25 : 50, // Reduced elevation for mobile performance
+                gradients: !isMobile, // Disable gradients on mobile for performance
                 autoCenter: true,
-                duration: 800,
+                duration: isMobile ? 600 : 800, // Faster animations on mobile
+                acceleration: !isMobile,
                 when: {
                     turned: (event, page, view) => {
                         view.forEach(p => preloadPages(p));
@@ -569,117 +641,108 @@
             $(".page").removeClass("tilting-left tilting-right tilting-strong-left tilting-strong-right hover-left hover-right");
         }
 
-        function handleEdgeHover(e) {
+        function handleEdgeHover(clientX) {
             if (isDraggingToFlip || isPanning || currentZoom > 1) return;
             
             const bookRect = $flipbook[0].getBoundingClientRect();
-            const mouseX = e.clientX;
             const leftEdge = bookRect.left;
             const rightEdge = bookRect.right;
-            const bookWidth = bookRect.width;
             
             clearTiltEffects();
             
             const currentPage = $flipbook.turn('page');
             
             // Left edge hover (for previous page)
-            if (mouseX - leftEdge < EDGE_HOVER_THRESHOLD && currentPage > 1) {
+            if (clientX - leftEdge < EDGE_HOVER_THRESHOLD && currentPage > 1) {
                 const $currentPageEl = $flipbook.find('.page[data-page="' + currentPage + '"]');
                 $currentPageEl.addClass('hover-left');
             }
             // Right edge hover (for next page)
-            else if (rightEdge - mouseX < EDGE_HOVER_THRESHOLD && currentPage < TOTAL_PAGES) {
+            else if (rightEdge - clientX < EDGE_HOVER_THRESHOLD && currentPage < TOTAL_PAGES) {
                 const targetPageNumber = (currentPage === 1) ? 1 : currentPage + 1;
                 const $targetPageEl = $flipbook.find('.page[data-page="' + targetPageNumber + '"]');
                 $targetPageEl.addClass('hover-right');
             }
         }
 
-        // --- Event Handlers ---
+        // --- Unified Pointer Handling Functions ---
 
-        $flipbook.on('mousemove', handleEdgeHover);
-        
-        $flipbook.on('mouseleave', function() {
-            if (!isDraggingToFlip && !isPanning) {
-                clearTiltEffects();
-            }
-        });
-
-        $bookWrapper.on('mousedown', function(e) {
-            if (e.button !== 0) return;
+        function handlePointerStart(e) {
+            const clientX = getEventX(e);
+            const clientY = getEventY(e);
+            
             if (currentZoom > 1) {
                 isPanning = true;
-                panStartX = e.clientX - panOffsetX;
-                panStartY = e.clientY - panOffsetY;
+                panStartX = clientX - panOffsetX;
+                panStartY = clientY - panOffsetY;
                 $bookWrapper.addClass('grabbing');
             } else {
                 isDraggingToFlip = true;
-                dragStartX = dragCurrentX = e.clientX;
+                dragStartX = dragCurrentX = clientX;
                 dragStartTime = Date.now();
                 $bookWrapper.addClass('grabbing');
-                clearTiltEffects(); // Clear hover effects when starting drag
+                clearTiltEffects();
             }
-            e.preventDefault();
-        });
+        }
 
-        $(document).on('mousemove', function(e) {
+        function handlePointerMove(e) {
+            const clientX = getEventX(e);
+            const clientY = getEventY(e);
+            
             if (isPanning) {
-                panOffsetX = e.clientX - panStartX;
-                panOffsetY = e.clientY - panStartY;
+                panOffsetX = clientX - panStartX;
+                panOffsetY = clientY - panStartY;
                 updateZoom();
             } else if (isDraggingToFlip) {
-                dragCurrentX = e.clientX;
+                dragCurrentX = clientX;
                 const deltaX = dragCurrentX - dragStartX;
                 const dragStrength = Math.abs(deltaX);
                 let pageToTilt = null;
-                let indicatorSide = null;
-                let isStrongDrag = dragStrength > 100;
+                let isStrongDrag = dragStrength > 80; // Adjusted for touch
 
                 clearTiltEffects();
                 
                 const currentPage = $flipbook.turn('page');
 
                 // Dragging RIGHT (to go to PREVIOUS page)
-                if (deltaX > 20 && currentPage > 1) {
+                if (deltaX > 15 && currentPage > 1) {
                     pageToTilt = $flipbook.find('.page[data-page="' + currentPage + '"]');
-                    indicatorSide = 'left';
                     if (pageToTilt.length) {
                         pageToTilt.addClass(isStrongDrag ? 'tilting-strong-left' : 'tilting-left');
                     }
                 } 
                 // Dragging LEFT (to go to NEXT page)
-                else if (deltaX < -20 && currentPage < TOTAL_PAGES) {
+                else if (deltaX < -15 && currentPage < TOTAL_PAGES) {
                     const targetPageNumber = (currentPage === 1) ? 1 : currentPage + 1;
                     pageToTilt = $flipbook.find('.page[data-page="' + targetPageNumber + '"]');
-                    indicatorSide = 'right';
                     if (pageToTilt.length) {
                         pageToTilt.addClass(isStrongDrag ? 'tilting-strong-right' : 'tilting-right');
                     }
                 }
-
-                // Update drag indicators
-                if (pageToTilt && pageToTilt.length && indicatorSide) {
-                    const $indicator = pageToTilt.find('.drag-indicator.' + indicatorSide);
-                    $indicator.addClass('active');
-                    if (isStrongDrag) {
-                        $indicator.addClass('strong');
-                    }
-                }
             }
-        }).on('mouseup', function(e) {
+        }
+
+        function handlePointerEnd(e) {
+            const clientX = getEventX(e);
+            
             if (isDraggingToFlip) {
                 const deltaX = dragCurrentX - dragStartX;
                 const duration = Date.now() - dragStartTime;
 
-                if (Math.abs(deltaX) > 50 && duration < 500) {
+                // For touch devices, be more sensitive to swipes
+                const swipeThreshold = isTouch ? 30 : 50;
+                const maxDuration = isTouch ? 800 : 500;
+
+                if (Math.abs(deltaX) > swipeThreshold && duration < maxDuration) {
                     if (deltaX > 0) {
                         $flipbook.turn("previous");
                     } else {
                         $flipbook.turn("next");
                     }
-                } else if (Math.abs(deltaX) < 10) {
+                } else if (Math.abs(deltaX) < 10 && !touchMoved) {
+                    // Handle tap/click
                     const bookRect = $flipbook[0].getBoundingClientRect();
-                    if (e.clientX < bookRect.left + bookRect.width / 2) {
+                    if (clientX < bookRect.left + bookRect.width / 2) {
                         $flipbook.turn("previous");
                     } else {
                         $flipbook.turn("next");
@@ -690,22 +753,116 @@
 
             isPanning = false;
             isDraggingToFlip = false;
+            touchMoved = false;
             $bookWrapper.removeClass('grabbing');
+        }
+
+        // --- Event Handlers ---
+
+        // Mouse Events (enabled for all devices)
+        $flipbook.on('mousemove', function(e) {
+            if (!isDraggingToFlip && !isPanning) {
+                handleEdgeHover(e.clientX);
+            }
+        });
+        
+        $flipbook.on('mouseleave', function() {
+            if (!isDraggingToFlip && !isPanning) {
+                clearTiltEffects();
+            }
+        });
+
+        // Unified mouse and touch events
+        $bookWrapper.on('mousedown touchstart', function(e) {
+            if (e.type === 'mousedown' && e.button !== 0) return; // Only left mouse button
+            
+            e.preventDefault();
+            
+            if (e.type === 'touchstart') {
+                touchMoved = false;
+                touchStartX = getEventX(e);
+                touchStartY = getEventY(e);
+            }
+            
+            handlePointerStart(e);
+        });
+
+        $(document).on('mousemove touchmove', function(e) {
+            if (!isPanning && !isDraggingToFlip) return;
+            
+            e.preventDefault();
+            
+            if (e.type === 'touchmove') {
+                const touchX = getEventX(e);
+                const touchY = getEventY(e);
+                const deltaX = Math.abs(touchX - touchStartX);
+                const deltaY = Math.abs(touchY - touchStartY);
+                
+                if (deltaX > 10 || deltaY > 10) {
+                    touchMoved = true;
+                }
+            }
+            
+            handlePointerMove(e);
+        });
+
+        $(document).on('mouseup touchend touchcancel', function(e) {
+            if (!isPanning && !isDraggingToFlip) return;
+            
+            e.preventDefault();
+            handlePointerEnd(e);
         });
 
         // Button Controls & Keyboard
-        $prevBtn.on('click', () => $flipbook.turn("previous"));
-        $nextBtn.on('click', () => $flipbook.turn("next"));
-        $zoomInBtn.on('click', () => { currentZoom = Math.min(2.0, currentZoom + 0.1); updateZoom(); });
-        $zoomOutBtn.on('click', () => { currentZoom = Math.max(0.5, currentZoom - 0.1); updateZoom(); });
-        $resetBtn.on('click', () => { currentZoom = 1; updateZoom(); });
-        $(document).on('keydown', function(e) {
-            if (e.key === "ArrowLeft") $flipbook.turn("previous");
-            else if (e.key === "ArrowRight") $flipbook.turn("next");
+        $prevBtn.on('click touchend', function(e) {
+            e.preventDefault();
+            $flipbook.turn("previous");
         });
         
+        $nextBtn.on('click touchend', function(e) {
+            e.preventDefault();
+            $flipbook.turn("next");
+        });
+        
+        $zoomInBtn.on('click touchend', function(e) {
+            e.preventDefault();
+            currentZoom = Math.min(2.0, currentZoom + 0.1);
+            updateZoom();
+        });
+        
+        $zoomOutBtn.on('click touchend', function(e) {
+            e.preventDefault();
+            currentZoom = Math.max(0.5, currentZoom - 0.1);
+            updateZoom();
+        });
+        
+        $resetBtn.on('click touchend', function(e) {
+            e.preventDefault();
+            currentZoom = 1;
+            panOffsetX = 0;
+            panOffsetY = 0;
+            updateZoom();
+        });
+
+        // Keyboard support (desktop only)
+        if (!isMobile) {
+            $(document).on('keydown', function(e) {
+                if (e.key === "ArrowLeft") $flipbook.turn("previous");
+                else if (e.key === "ArrowRight") $flipbook.turn("next");
+            });
+        }
+        
         // Window Resize
-        $(window).on('resize', resizeFlipbook);
+        $(window).on('resize orientationchange', function() {
+            setTimeout(resizeFlipbook, 100);
+        });
+
+        // Prevent default touch behaviors
+        $(document).on('touchmove', function(e) {
+            if ($(e.target).closest('.flipbook-container').length) {
+                e.preventDefault();
+            }
+        }, { passive: false });
 
         // --- Initialization ---
         generatePages();
@@ -715,6 +872,3 @@
         preloadPages(2);
     });
 </script>
-
-</body>
-</html>
