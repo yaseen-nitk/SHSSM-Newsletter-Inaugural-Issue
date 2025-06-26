@@ -629,16 +629,15 @@
 
             // MODIFICATION: Refined mouse drag functionality based on zoom level
             $("#bookWrapper").on('mousedown', function(e) {
-                if (currentZoom > 1.3) { // If zoomed above 130%, only allow panning
+                if (currentZoom > 1) {
+                    // If zoomed in, the action is to pan the view
                     isPanning = true;
                     // Adjust pan start coordinates for the current zoom level
                     panStartX = (e.clientX / currentZoom) - panOffsetX;
                     panStartY = (e.clientY / currentZoom) - panOffsetY;
                     $(this).css("cursor", "grabbing");
-                    isDraggingToFlip = false; // Ensure drag-to-flip is false
                 } else {
-                    // If not zoomed or zoomed below/at 130%, allow drag to flip
-                    isPanning = false; // Ensure panning is false
+                    // If not zoomed, the action is to drag to flip a page
                     isDraggingToFlip = true;
                     dragStartX = e.clientX;
                     dragStartY = e.clientY;
@@ -650,7 +649,7 @@
             });
 
             $(document).on('mousemove', function(e) {
-                if (isPanning && currentZoom > 1.3) { // Only pan if zoomed above 130%
+                if (isPanning && currentZoom > 1) {
                     // Update position while panning, adjusting for zoom
                     panOffsetX = (e.clientX / currentZoom) - panStartX;
                     panOffsetY = (e.clientY / currentZoom) - panStartY;
@@ -668,8 +667,8 @@
                     panOffsetY = Math.max(-maxPanY, Math.min(maxPanY, panOffsetY));
 
                     $("#bookWrapper").css("transform", `scale(${currentZoom}) translate(${panOffsetX}px, ${panOffsetY}px)`);
-                } else if (isDraggingToFlip && currentZoom <= 1.3) { // Only drag to flip if not zoomed above 130%
-                    // Update position while dragging to flip
+                } else if (isDraggingToFlip && currentZoom === 1) {
+                    // Update position while dragging to flip (only if not zoomed)
                     dragCurrentX = e.clientX;
                     dragCurrentY = e.clientY;
                 }
@@ -693,6 +692,10 @@
                             const bookRect = $("#flipbook")[0].getBoundingClientRect();
                             const bookCenterX = bookRect.left + bookRect.width / 2;
 
+                            // Adjust click position for zoom
+                            const clientXAdjusted = e.clientX / currentZoom;
+                            const bookCenterXAdjusted = (bookRect.left + bookRect.width / 2) / currentZoom;
+
 
                             if (e.clientX < bookCenterX) {
                                 $("#flipbook").turn("previous");
@@ -706,27 +709,23 @@
 
             // Touch panning for mobile (unchanged, but applies zoom logic)
             $("#bookWrapper").on('touchstart', function(e) {
-                if (e.originalEvent.touches.length === 1) {
-                    if (currentZoom > 1.3) { // If zoomed above 130%, only allow panning
-                        isPanning = true;
-                        panStartX = (e.originalEvent.touches[0].clientX / currentZoom) - panOffsetX;
-                        panStartY = (e.originalEvent.touches[0].clientY / currentZoom) - panOffsetY;
-                        isDraggingToFlip = false; // Ensure drag-to-flip is false
-                    } else { // If not zoomed or zoomed below/at 130%, allow drag to flip
-                        isPanning = false; // Ensure panning is false
-                        isDraggingToFlip = true;
-                        dragStartX = e.originalEvent.touches[0].clientX;
-                        dragStartY = e.originalEvent.touches[0].clientY;
-                        dragCurrentX = e.originalEvent.touches[0].clientX;
-                        dragCurrentY = e.originalEvent.touches[0].clientY;
-                        dragStartTime = Date.now();
-                    }
+                if (currentZoom > 1 && e.originalEvent.touches.length === 1) {
+                    isPanning = true;
+                    panStartX = (e.originalEvent.touches[0].clientX / currentZoom) - panOffsetX;
+                    panStartY = (e.originalEvent.touches[0].clientY / currentZoom) - panOffsetY;
                     e.preventDefault();
+                } else if (currentZoom === 1 && e.originalEvent.touches.length === 1) {
+                    isDraggingToFlip = true;
+                    dragStartX = e.originalEvent.touches[0].clientX;
+                    dragStartY = e.originalEvent.touches[0].clientY;
+                    dragCurrentX = e.originalEvent.touches[0].clientX;
+                    dragCurrentY = e.originalEvent.touches[0].clientY;
+                    dragStartTime = Date.now();
                 }
             });
 
             $(document).on('touchmove', function(e) {
-                if (isPanning && currentZoom > 1.3 && e.originalEvent.touches.length === 1) { // Only pan if zoomed above 130%
+                if (isPanning && currentZoom > 1 && e.originalEvent.touches.length === 1) {
                     panOffsetX = (e.originalEvent.touches[0].clientX / currentZoom) - panStartX;
                     panOffsetY = (e.originalEvent.touches[0].clientY / currentZoom) - panStartY;
 
@@ -741,7 +740,7 @@
 
                     $("#bookWrapper").css("transform", `scale(${currentZoom}) translate(${panOffsetX}px, ${panOffsetY}px)`);
                     e.preventDefault();
-                } else if (isDraggingToFlip && currentZoom <= 1.3 && e.originalEvent.touches.length === 1) { // Only drag to flip if not zoomed above 130%
+                } else if (isDraggingToFlip && currentZoom === 1 && e.originalEvent.touches.length === 1) {
                     dragCurrentX = e.originalEvent.touches[0].clientX;
                     dragCurrentY = e.originalEvent.touches[0].clientY;
                 }
@@ -758,7 +757,7 @@
 
                     // Handle as click if not a clear swipe and not zoomed
                     const clickThreshold = 10; // For touch, less sensitive to click
-                    if (!handleDragFlip(deltaX, deltaY, duration)) { // No currentZoom check here, as it's already handled by isDraggingToFlip
+                    if (!handleDragFlip(deltaX, deltaY, duration) && currentZoom === 1) {
                         if (Math.abs(deltaX) < clickThreshold && Math.abs(deltaY) < clickThreshold) {
                              const bookRect = $("#flipbook")[0].getBoundingClientRect();
                             const bookCenterX = bookRect.left + bookRect.width / 2;
@@ -799,7 +798,7 @@
             let flipTouchStartY = 0;
 
             $("#flipbook").on('touchstart', function(e) {
-                if (currentZoom <= 1.3 && e.originalEvent.touches.length === 1) { // Only enable flip swipe if not zoomed above 130%
+                if (currentZoom === 1 && e.originalEvent.touches.length === 1) { // Only enable flip swipe if not zoomed
                     flipTouchStartX = e.originalEvent.touches[0].clientX;
                     flipTouchStartY = e.originalEvent.touches[0].clientY;
                     // Prevent default touch behavior that might interfere with Turn.js
@@ -808,7 +807,7 @@
             });
 
             $("#flipbook").on('touchend', function(e) {
-                if (currentZoom <= 1.3) { // Only enable flip swipe if not zoomed above 130%
+                if (currentZoom === 1) { // Only enable flip swipe if not zoomed
                     const touchEndX = e.originalEvent.changedTouches[0].clientX;
                     const touchEndY = e.originalEvent.changedTouches[0].clientY;
 
