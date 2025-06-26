@@ -114,7 +114,7 @@
             top: 30px;
             right: 30px;
             display: flex;
-            flex-direction: column;
+            flex-direction: column; /* Default to vertical for larger screens */
             gap: 10px;
             z-index: 1000;
         }
@@ -254,7 +254,7 @@
             display: none;
         }
 
-        /* Mobile touch improvements */
+        /* Mobile specific styles */
         @media (max-width: 768px) {
             .controls {
                 bottom: 20px;
@@ -269,6 +269,7 @@
             .zoom-controls {
                 top: 20px;
                 right: 20px;
+                flex-direction: row; /* Horizontal layout for mobile */
                 gap: 8px;
             }
 
