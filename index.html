@@ -96,19 +96,12 @@
             font-size: 1em;
             transition: all 0.3s ease;
             backdrop-filter: blur(10px);
-            -webkit-tap-highlight-color: transparent; /* Remove tap highlight on mobile */
         }
 
         .control-btn:hover {
             background: rgba(255, 255, 255, 0.3);
             transform: translateY(-2px);
             box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
-        }
-
-        .control-btn:active { /* Added active state for touch feedback */
-            background: rgba(255, 255, 255, 0.4);
-            transform: translateY(0);
-            box-shadow: none;
         }
 
         .control-btn:disabled {
@@ -140,17 +133,11 @@
             align-items: center;
             transition: all 0.3s ease;
             backdrop-filter: blur(10px);
-            -webkit-tap-highlight-color: transparent; /* Remove tap highlight on mobile */
         }
 
         .zoom-btn:hover {
             background: rgba(255, 255, 255, 0.3);
             transform: scale(1.1);
-        }
-
-        .zoom-btn:active { /* Added active state for touch feedback */
-            background: rgba(255, 255, 255, 0.4);
-            transform: scale(1.0);
         }
 
         .zoom-level {
@@ -297,34 +284,6 @@
                 padding: 10px 16px;
                 font-size: 0.9em;
             }
-
-            /* Adjust tap areas for flipping */
-            .page.turn-page { /* Target the turn.js generated page elements */
-                position: relative;
-            }
-
-            .page.turn-page::before,
-            .page.turn-page::after {
-                content: '';
-                position: absolute;
-                top: 0;
-                bottom: 0;
-                width: 30%; /* Tap zone width */
-                z-index: 10; /* Ensure it's above the image but below controls */
-            }
-
-            .page.turn-page::before { /* Left tap zone */
-                left: 0;
-            }
-
-            .page.turn-page::after { /* Right tap zone */
-                right: 0;
-            }
-
-            /* Disable default cursor for touch devices */
-            body, .page, .control-btn, .zoom-btn, .book-wrapper {
-                cursor: default !important;
-            }
         }
     </style>
 </head>
@@ -337,10 +296,10 @@
         <div class="page-info" id="pageInfo">Page 1 of 32</div>
 
         <div class="zoom-controls">
-            <button class="zoom-btn" id="zoomInBtn" aria-label="Zoom In">+</button>
+            <button class="zoom-btn" id="zoomInBtn">+</button>
             <div class="zoom-level" id="zoomLevel">100%</div>
-            <button class="zoom-btn" id="zoomOutBtn" aria-label="Zoom Out">-</button>
-            <button class="zoom-btn" id="resetBtn" aria-label="Reset Zoom">⌂</button>
+            <button class="zoom-btn" id="zoomOutBtn">-</button>
+            <button class="zoom-btn" id="resetBtn">⌂</button>
         </div>
 
         <div class="book-wrapper" id="bookWrapper">
@@ -349,8 +308,8 @@
         </div>
 
         <div class="controls">
-            <button class="control-btn" id="prevBtn" aria-label="Previous Page">← Previous</button>
-            <button class="control-btn" id="nextBtn" aria-label="Next Page">Next →</button>
+            <button class="control-btn" id="prevBtn">← Previous</button>
+            <button class="control-btn" id="nextBtn">Next →</button>
         </div>
     </div>
 
@@ -716,32 +675,15 @@
 
                     // If the drag wasn't long enough to be a page-flip, treat it as a click
                     if (!handleDragFlip(deltaX, deltaY, duration)) {
-                        // MODIFICATION: Adjust tap logic for mobile (using the new tap zones)
-                        if ($(window).width() <= 768 && currentZoom === 1) {
+                        const clickThreshold = 10;
+                        if (Math.abs(deltaX) < clickThreshold && Math.abs(deltaY) < clickThreshold) {
                             const bookRect = $("#flipbook")[0].getBoundingClientRect();
-                            const clickX = e.clientX;
+                            const bookCenterX = bookRect.left + bookRect.width / 2;
 
-                            // Define tap zones (e.g., 30% from left/right edges)
-                            const leftZoneEnd = bookRect.left + (bookRect.width * 0.3);
-                            const rightZoneStart = bookRect.right - (bookRect.width * 0.3);
-
-                            if (clickX < leftZoneEnd) {
+                            if (e.clientX < bookCenterX) {
                                 $("#flipbook").turn("previous");
-                            } else if (clickX > rightZoneStart) {
+                            } else {
                                 $("#flipbook").turn("next");
-                            }
-                        } else {
-                            // Original desktop click behavior
-                            const clickThreshold = 10;
-                            if (Math.abs(deltaX) < clickThreshold && Math.abs(deltaY) < clickThreshold) {
-                                const bookRect = $("#flipbook")[0].getBoundingClientRect();
-                                const bookCenterX = bookRect.left + bookRect.width / 2;
-
-                                if (e.clientX < bookCenterX) {
-                                    $("#flipbook").turn("previous");
-                                } else {
-                                    $("#flipbook").turn("next");
-                                }
                             }
                         }
                     }
@@ -795,13 +737,19 @@
                 }
             });
 
-            // Touch/swipe functionality (MODIFIED for better mobile tap zone integration)
+            // Touch/swipe functionality (MODIFIED)
             let touchStartX = 0;
             let touchStartY = 0;
-            let lastTapTime = 0;
-            const DOUBLE_TAP_THRESHOLD = 300; // ms
 
             $("#flipbook").on('touchstart', function(e) {
+                // Disable swipe to turn if zoomed in (either by app or browser)
+                const isBrowserZoomed = window.innerWidth < document.documentElement.clientWidth;
+                if (currentZoom > 1 || isBrowserZoomed) {
+                    debug("Swipe disabled due to zoom.");
+                    e.preventDefault(); // Prevent default touch behavior (like scrolling/zooming)
+                    return; // Stop execution of swipe logic
+                }
+
                 if (e.originalEvent.touches.length === 1) {
                     touchStartX = e.originalEvent.touches[0].clientX;
                     touchStartY = e.originalEvent.touches[0].clientY;
@@ -809,6 +757,12 @@
             });
 
             $("#flipbook").on('touchend', function(e) {
+                // If swipe was disabled in touchstart, it should remain disabled here
+                const isBrowserZoomed = window.innerWidth < document.documentElement.clientWidth;
+                if (currentZoom > 1 || isBrowserZoomed) {
+                    return; // Do nothing if zoomed
+                }
+
                 const touchEndX = e.originalEvent.changedTouches[0].clientX;
                 const touchEndY = e.originalEvent.changedTouches[0].clientY;
 
@@ -816,44 +770,13 @@
                 const deltaY = touchEndY - touchStartY;
                 const minSwipeDistance = 50;
 
-                const currentTime = Date.now();
-                const tapDuration = currentTime - lastTapTime;
-
-                // Double tap to zoom toggle
-                if (Math.abs(deltaX) < 10 && Math.abs(deltaY) < 10 && tapDuration < DOUBLE_TAP_THRESHOLD) {
-                    e.preventDefault(); // Prevent accidental page flip
-                    if (currentZoom === 1) {
-                        currentZoom = 1.5; // Zoom in
-                    } else {
-                        currentZoom = 1; // Zoom out
-                    }
-                    updateZoom();
-                    lastTapTime = 0; // Reset double tap
-                } else if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > minSwipeDistance) {
-                    // Standard swipe for flipping
+                if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > minSwipeDistance) {
                     if (deltaX > 0) {
                         $("#flipbook").turn("previous");
                     } else {
                         $("#flipbook").turn("next");
                     }
-                } else if (Math.abs(deltaX) < 10 && Math.abs(deltaY) < 10) {
-                    // Handle single tap for page turning if not zoomed
-                    if (currentZoom === 1) {
-                        const bookRect = $("#flipbook")[0].getBoundingClientRect();
-                        const tapX = e.originalEvent.changedTouches[0].clientX;
-
-                        // Define tap zones (e.g., 30% from left/right edges)
-                        const leftZoneEnd = bookRect.left + (bookRect.width * 0.3);
-                        const rightZoneStart = bookRect.right - (bookRect.width * 0.3);
-
-                        if (tapX < leftZoneEnd) {
-                            $("#flipbook").turn("previous");
-                        } else if (tapX > rightZoneStart) {
-                            $("#flipbook").turn("next");
-                        }
-                    }
                 }
-                lastTapTime = currentTime;
             });
 
             // Responsive handling (unchanged)
