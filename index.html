@@ -781,7 +781,8 @@
             });
 
             // Mouse wheel zoom (UPDATED)
-            $("#flipbook").on('wheel', function(e) {
+            // Attaching to $(document) to ensure it captures scroll events anywhere on the page
+            $(document).on('wheel', function(e) {
                 e.preventDefault(); // Prevents default scroll behavior
                 if (e.originalEvent.deltaY < 0) { // Detects scroll up
                     $("#zoomInBtn").click(); // Triggers zoom in
