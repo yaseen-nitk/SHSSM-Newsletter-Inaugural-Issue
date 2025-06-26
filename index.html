@@ -254,27 +254,6 @@
             display: none;
         }
 
-        /* Drag indicator */
-        .drag-indicator {
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background: rgba(0, 0, 0, 0.7);
-            color: white;
-            padding: 10px 20px;
-            border-radius: 20px;
-            font-size: 0.9em;
-            z-index: 1002;
-            opacity: 0;
-            transition: opacity 0.3s ease;
-            pointer-events: none;
-        }
-
-        .drag-indicator.show {
-            opacity: 1;
-        }
-
         /* Mobile touch improvements */
         @media (max-width: 768px) {
             .controls {
@@ -313,8 +292,6 @@
         <div class="progress-bar" id="progressBar"></div>
     </div>
 
-    <div class="drag-indicator" id="dragIndicator">Drag to flip pages</div>
-
     <div class="flipbook-container">
         <div class="page-info" id="pageInfo">Page 1 of 32</div>
         
@@ -327,8 +304,7 @@
         
         <div class="book-wrapper" id="bookWrapper">
             <div id="flipbook">
-                <!-- Pages will be generated dynamically -->
-            </div>
+                </div>
         </div>
         
         <div class="controls">
@@ -337,7 +313,6 @@
         </div>
     </div>
 
-    <!-- Turn.js Library -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/turn.js/3/turn.min.js"></script>
     
@@ -347,7 +322,7 @@
             const TOTAL_PAGES = 32;
             const PRELOAD_RANGE = 4;
             const IMAGE_BASE_PATH = 'images/';
-            const IMAGE_EXTENSION = '.png';
+            const IMAGE_EXTENSION = '.webp';
             
             // Variables for responsive sizing and zoom
             let currentZoom = 1;
@@ -361,7 +336,7 @@
             let panOffsetX = 0;
             let panOffsetY = 0;
 
-            // Mouse drag to flip variables
+            // MODIFICATION: Restored state variables for custom drag-to-flip feature
             let isDraggingToFlip = false;
             let dragStartX = 0;
             let dragStartY = 0;
@@ -380,44 +355,27 @@
                     console.log(message);
                 }
             }
-            
-            // Show drag indicator
-            function showDragIndicator(message) {
-                $("#dragIndicator").text(message).addClass('show');
-                setTimeout(() => {
-                    $("#dragIndicator").removeClass('show');
-                }, 1500);
-            }
 
-            // Handle mouse drag to flip
+            // MODIFICATION: Restored the logic to handle the end of a drag gesture
             function handleDragFlip(deltaX, deltaY, duration) {
-                const minDragDistance = 20;
+                const minDragDistance = 30; // Increased slightly to prevent accidental flips
                 const maxDragTime = 1000;
                 
+                // Check if the drag was primarily horizontal and met the distance/time thresholds
                 if (Math.abs(deltaX) > Math.abs(deltaY) && 
                     Math.abs(deltaX) > minDragDistance && 
                     duration < maxDragTime) {
                     
                     if (deltaX > 0) {
-                        if (currentPage > 1) {
-                            $("#flipbook").turn("previous");
-                            showDragIndicator("← Previous Page");
-                        } else {
-                            showDragIndicator("Already at first page");
-                        }
+                        $("#flipbook").turn("previous");
                     } else {
-                        if (currentPage < TOTAL_PAGES) {
-                            $("#flipbook").turn("next");
-                            showDragIndicator("Next Page →");
-                        } else {
-                            showDragIndicator("Already at last page");
-                        }
+                        $("#flipbook").turn("next");
                     }
                     
-                    return true;
+                    return true; // The drag was handled as a page flip
                 }
                 
-                return false;
+                return false; // The drag was not a valid page flip gesture
             }
             
             // Update progress bar
@@ -603,9 +561,9 @@
                 $("#resetBtn").prop("disabled", currentZoom === 1 && panOffsetX === 0 && panOffsetY === 0);
                 
                 if (currentZoom > 1) {
-                    $("#bookWrapper").css("cursor", "grab");
+                    bookWrapper.css("cursor", "grab");
                 } else {
-                    $("#bookWrapper").css("cursor", "default");
+                    bookWrapper.css("cursor", "default");
                 }
             }
             
@@ -639,30 +597,29 @@
                 updateZoom();
             });
             
-            // Enhanced mouse drag functionality
+            // MODIFICATION: Restored the full mouse drag functionality
             $("#bookWrapper").on('mousedown', function(e) {
                 if (currentZoom > 1) {
-                    // Pan functionality when zoomed
+                    // If zoomed in, the action is to pan the view
                     isPanning = true;
                     panStartX = e.clientX - panOffsetX;
                     panStartY = e.clientY - panOffsetY;
                     $(this).css("cursor", "grabbing");
                 } else {
-                    // Drag to flip functionality when not zoomed
+                    // If not zoomed, the action is to drag to flip a page
                     isDraggingToFlip = true;
                     dragStartX = e.clientX;
                     dragStartY = e.clientY;
                     dragCurrentX = e.clientX;
                     dragCurrentY = e.clientY;
                     dragStartTime = Date.now();
-                    $(this).css("cursor", "grabbing");
                 }
                 e.preventDefault();
             });
 
             $(document).on('mousemove', function(e) {
                 if (isPanning && currentZoom > 1) {
-                    // Pan when zoomed
+                    // Update position while panning
                     panOffsetX = e.clientX - panStartX;
                     panOffsetY = e.clientY - panStartY;
                     
@@ -672,18 +629,9 @@
                     
                     $("#bookWrapper").css("transform", `scale(${currentZoom}) translate(${panOffsetX}px, ${panOffsetY}px)`);
                 } else if (isDraggingToFlip && currentZoom === 1) {
-                    // Track drag movement for page flipping
+                    // Update position while dragging to flip
                     dragCurrentX = e.clientX;
                     dragCurrentY = e.clientY;
-                    
-                    // Visual feedback during drag
-                    const deltaX = dragCurrentX - dragStartX;
-                    const opacity = Math.min(Math.abs(deltaX) / 100, 0.3);
-                    
-                    if (Math.abs(deltaX) > 20) {
-                        const direction = deltaX > 0 ? "←" : "→";
-                        $("#dragIndicator").text(`${direction} Drag to flip`).css('opacity', opacity);
-                    }
                 }
             });
 
@@ -693,25 +641,19 @@
                     $("#bookWrapper").css("cursor", currentZoom > 1 ? "grab" : "default");
                 } else if (isDraggingToFlip) {
                     isDraggingToFlip = false;
-                    $("#bookWrapper").css("cursor", "default");
-                    $("#dragIndicator").css('opacity', 0);
                     
-                    // Calculate drag distance and duration
                     const deltaX = dragCurrentX - dragStartX;
                     const deltaY = dragCurrentY - dragStartY;
                     const duration = Date.now() - dragStartTime;
                     
-                    // Try to handle as page flip
+                    // If the drag wasn't long enough to be a page-flip, treat it as a click
                     if (!handleDragFlip(deltaX, deltaY, duration)) {
-                        // If drag wasn't handled as flip, treat as regular click
                         const clickThreshold = 10;
                         if (Math.abs(deltaX) < clickThreshold && Math.abs(deltaY) < clickThreshold) {
-                            // Handle as click to flip
-                            const clickX = e.clientX;
                             const bookRect = $("#flipbook")[0].getBoundingClientRect();
                             const bookCenterX = bookRect.left + bookRect.width / 2;
                             
-                            if (clickX < bookCenterX) {
+                            if (e.clientX < bookCenterX) {
                                 $("#flipbook").turn("previous");
                             } else {
                                 $("#flipbook").turn("next");
@@ -721,7 +663,7 @@
                 }
             });
             
-            // Touch panning for mobile
+            // Touch panning for mobile (unchanged)
             $("#bookWrapper").on('touchstart', function(e) {
                 if (currentZoom > 1 && e.originalEvent.touches.length === 1) {
                     isPanning = true;
@@ -749,26 +691,7 @@
                 isPanning = false;
             });
             
-            // Click to flip functionality
-            $("#flipbook").on('click', '.page', function(e) {
-                // Don't handle click if we were dragging or panning
-                if (isDraggingToFlip || isPanning) return;
-                
-                const page = $(this);
-                const pageRect = page[0].getBoundingClientRect();
-                const clickX = e.clientX - pageRect.left;
-                const pageWidth = pageRect.width;
-                
-                let edgeThreshold = currentZoom > 1 ? pageWidth * 0.2 : pageWidth * 0.5;
-                
-                if (clickX < edgeThreshold) {
-                    $("#flipbook").turn("previous");
-                } else if (clickX > pageWidth - edgeThreshold) {
-                    $("#flipbook").turn("next");
-                }
-            });
-            
-            // Keyboard navigation
+            // Keyboard navigation (unchanged)
             $(document).keydown(function(e) {
                 if (e.keyCode === 37) {
                     $("#flipbook").turn("previous");
@@ -787,13 +710,15 @@
                 }
             });
             
-            // Touch/swipe functionality
+            // Touch/swipe functionality (unchanged)
             let touchStartX = 0;
             let touchStartY = 0;
             
             $("#flipbook").on('touchstart', function(e) {
-                touchStartX = e.originalEvent.touches[0].clientX;
-                touchStartY = e.originalEvent.touches[0].clientY;
+                if (e.originalEvent.touches.length === 1) {
+                    touchStartX = e.originalEvent.touches[0].clientX;
+                    touchStartY = e.originalEvent.touches[0].clientY;
+                }
             });
             
             $("#flipbook").on('touchend', function(e) {
@@ -813,7 +738,7 @@
                 }
             });
             
-            // Responsive handling
+            // Responsive handling (unchanged)
             function resizeFlipbook() {
                 const size = calculateOptimalSize();
                 $("#flipbook").turn("size", size.width, size.height);
@@ -828,7 +753,7 @@
                 resizeFlipbook();
             });
             
-            // Mouse wheel zoom
+            // Mouse wheel zoom (unchanged)
             $("#flipbook").on('wheel', function(e) {
                 if (e.ctrlKey) {
                     e.preventDefault();
