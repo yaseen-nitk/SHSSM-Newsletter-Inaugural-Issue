@@ -737,19 +737,11 @@
                 }
             });
 
-            // Touch/swipe functionality (MODIFIED)
+            // Touch/swipe functionality (unchanged)
             let touchStartX = 0;
             let touchStartY = 0;
 
             $("#flipbook").on('touchstart', function(e) {
-                // Disable swipe to turn if zoomed in (either by app or browser)
-                const isBrowserZoomed = window.innerWidth < document.documentElement.clientWidth;
-                if (currentZoom > 1 || isBrowserZoomed) {
-                    debug("Swipe disabled due to zoom.");
-                    e.preventDefault(); // Prevent default touch behavior (like scrolling/zooming)
-                    return; // Stop execution of swipe logic
-                }
-
                 if (e.originalEvent.touches.length === 1) {
                     touchStartX = e.originalEvent.touches[0].clientX;
                     touchStartY = e.originalEvent.touches[0].clientY;
@@ -757,12 +749,6 @@
             });
 
             $("#flipbook").on('touchend', function(e) {
-                // If swipe was disabled in touchstart, it should remain disabled here
-                const isBrowserZoomed = window.innerWidth < document.documentElement.clientWidth;
-                if (currentZoom > 1 || isBrowserZoomed) {
-                    return; // Do nothing if zoomed
-                }
-
                 const touchEndX = e.originalEvent.changedTouches[0].clientX;
                 const touchEndY = e.originalEvent.changedTouches[0].clientY;
 
