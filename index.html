@@ -780,15 +780,13 @@
                 resizeFlipbook();
             });
 
-            // Mouse wheel zoom (unchanged)
+            // Mouse wheel zoom (UPDATED)
             $("#flipbook").on('wheel', function(e) {
-                if (e.ctrlKey) {
-                    e.preventDefault();
-                    if (e.originalEvent.deltaY < 0) {
-                        $("#zoomInBtn").click();
-                    } else {
-                        $("#zoomOutBtn").click();
-                    }
+                e.preventDefault(); // Prevents default scroll behavior
+                if (e.originalEvent.deltaY < 0) { // Detects scroll up
+                    $("#zoomInBtn").click(); // Triggers zoom in
+                } else { // Detects scroll down
+                    $("#zoomOutBtn").click(); // Triggers zoom out
                 }
             });
 
