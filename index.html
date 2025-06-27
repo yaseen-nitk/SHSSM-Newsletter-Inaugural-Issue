@@ -337,7 +337,7 @@
             let panOffsetX = 0;
             let panOffsetY = 0;
 
-            // MODIFICATION: Restored state variables for custom drag-to-flip feature (mouse-based)
+            // MODIFICATION: Restored state variables for custom drag-to-flip feature
             let isDraggingToFlip = false;
             let dragStartX = 0;
             let dragStartY = 0;
@@ -355,12 +355,6 @@
                 if (debugMode) {
                     console.log(message);
                 }
-            }
-
-            // Helper function to detect mobile devices
-            function isMobileDevice() {
-                // Returns true if the window width is less than or equal to 768px (common breakpoint)
-                return window.innerWidth <= 768;
             }
 
             // MODIFICATION: Restored the logic to handle the end of a drag gesture
@@ -630,7 +624,7 @@
                 updateZoom();
             });
 
-            // MODIFICATION: Consolidated mouse and touch handling for drag/pan
+            // MODIFICATION: Restored the full mouse drag functionality
             $("#bookWrapper").on('mousedown', function(e) {
                 if (currentZoom > 1) {
                     // If zoomed in, the action is to pan the view
@@ -639,7 +633,7 @@
                     panStartY = e.clientY - panOffsetY;
                     $(this).css("cursor", "grabbing");
                 } else {
-                    // If not zoomed, the action is to drag to flip a page (mouse only)
+                    // If not zoomed, the action is to drag to flip a page
                     isDraggingToFlip = true;
                     dragStartX = e.clientX;
                     dragStartY = e.clientY;
@@ -696,19 +690,54 @@
                 }
             });
 
-            // Touch panning logic
+            // Touch panning for mobile (unchanged)
             $("#bookWrapper").on('touchstart', function(e) {
-                if (e.originalEvent.touches.length === 1) {
-                    if (currentZoom > 1) {
-                        isPanning = true;
-                        panStartX = e.originalEvent.touches[0].clientX - panOffsetX;
-                        panStartY = e.originalEvent.touches[0].clientY - panOffsetY;
-                        e.preventDefault(); // Prevent default browser scroll and turn.js actions for panning
-                    }
+                if (currentZoom > 1 && e.originalEvent.touches.length === 1) {
+                    isPanning = true;
+                    panStartX = e.originalEvent.touches[0].clientX - panOffsetX;
+                    panStartY = e.originalEvent.touches[0].clientY - panOffsetY;
+                    e.preventDefault();
                 }
             });
 
-            // Custom touch/swipe functionality for flipping (now active on all devices)
+            $(document).on('touchmove', function(e) {
+                if (isPanning && currentZoom > 1 && e.originalEvent.touches.length === 1) {
+                    panOffsetX = e.originalEvent.touches[0].clientX - panStartX;
+                    panOffsetY = e.originalEvent.touches[0].clientY - panStartY;
+
+                    const maxPan = 200 * currentZoom;
+                    panOffsetX = Math.max(-maxPan, Math.min(maxPan, panOffsetX));
+                    panOffsetY = Math.max(-maxPan, Math.min(maxPan, panOffsetY));
+
+                    $("#bookWrapper").css("transform", `scale(${currentZoom}) translate(${panOffsetX}px, ${panOffsetY}px)`);
+                    e.preventDefault();
+                }
+            });
+
+            $(document).on('touchend', function() {
+                isPanning = false;
+            });
+
+            // Keyboard navigation (unchanged)
+            $(document).keydown(function(e) {
+                if (e.keyCode === 37) {
+                    $("#flipbook").turn("previous");
+                } else if (e.keyCode === 39) {
+                    $("#flipbook").turn("next");
+                } else if (e.keyCode === 187 || e.keyCode === 107) {
+                    e.preventDefault();
+                    $("#zoomInBtn").click();
+                } else if (e.keyCode === 189 || e.keyCode === 109) {
+                    e.preventDefault();
+                    $("#zoomOutBtn").click();
+                } else if (e.keyCode === 68 && e.ctrlKey) {
+                    e.preventDefault();
+                    debugMode = !debugMode;
+                    debug("Debug mode " + (debugMode ? "enabled" : "disabled"));
+                }
+            });
+
+            // Touch/swipe functionality (unchanged)
             let touchStartX = 0;
             let touchStartY = 0;
 
@@ -733,54 +762,6 @@
                     } else {
                         $("#flipbook").turn("next");
                     }
-                }
-            });
-
-            // NEW MODIFICATION: Prevent tap-to-flip on mobile devices when not zoomed
-            $("#flipbook").on('click', function(e) {
-                // Check if it's a mobile device and not currently zoomed in
-                if (isMobileDevice() && currentZoom === 1) {
-                    // Prevent the default click behavior, which turn.js uses for tapping to flip
-                    e.preventDefault();
-                }
-            });
-
-
-            $(document).on('touchmove', function(e) {
-                if (isPanning && currentZoom > 1 && e.originalEvent.touches.length === 1) {
-                    panOffsetX = e.originalEvent.touches[0].clientX - panStartX;
-                    panOffsetY = e.originalEvent.touches[0].clientY - panStartY;
-
-                    const maxPan = 200 * currentZoom;
-                    panOffsetX = Math.max(-maxPan, Math.min(maxPan, panOffsetX));
-                    panOffsetY = Math.max(-maxPan, Math.min(maxPan, panOffsetY));
-
-                    $("#bookWrapper").css("transform", `scale(${currentZoom}) translate(${panOffsetX}px, ${panOffsetY}px)`);
-                    e.preventDefault();
-                }
-            });
-
-            $(document).on('touchend', function() {
-                isPanning = false;
-            });
-
-
-            // Keyboard navigation (unchanged)
-            $(document).keydown(function(e) {
-                if (e.keyCode === 37) {
-                    $("#flipbook").turn("previous");
-                } else if (e.keyCode === 39) {
-                    $("#flipbook").turn("next");
-                } else if (e.keyCode === 187 || e.keyCode === 107) {
-                    e.preventDefault();
-                    $("#zoomInBtn").click();
-                } else if (e.keyCode === 189 || e.keyCode === 109) {
-                    e.preventDefault();
-                    $("#zoomOutBtn").click();
-                } else if (e.keyCode === 68 && e.ctrlKey) {
-                    e.preventDefault();
-                    debugMode = !debugMode;
-                    debug("Debug mode " + (debugMode ? "enabled" : "disabled"));
                 }
             });
 
