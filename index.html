@@ -780,14 +780,25 @@
                 resizeFlipbook();
             });
 
-            // Mouse wheel zoom (unchanged)
+            // Mouse wheel zoom and page turn functionality
             $("#flipbook").on('wheel', function(e) {
+                // Check if the Ctrl key is pressed for zooming functionality
                 if (e.ctrlKey) {
                     e.preventDefault();
                     if (e.originalEvent.deltaY < 0) {
                         $("#zoomInBtn").click();
                     } else {
                         $("#zoomOutBtn").click();
+                    }
+                } else {
+                    // If Ctrl key is not pressed, use scroll wheel for page turning
+                    e.preventDefault(); // Prevent default scroll behavior
+                    if (e.originalEvent.deltaY > 0) {
+                        // Scroll down, go to next page
+                        $("#flipbook").turn("next");
+                    } else {
+                        // Scroll up, go to previous page
+                        $("#flipbook").turn("previous");
                     }
                 }
             });
