@@ -337,7 +337,7 @@
             let panOffsetX = 0;
             let panOffsetY = 0;
 
-            // MODIFICATION: Restored state variables for custom drag-to-flip feature
+            // MODIFICATION: Restored state variables for custom drag-to-flip feature (mouse-based)
             let isDraggingToFlip = false;
             let dragStartX = 0;
             let dragStartY = 0;
@@ -355,6 +355,12 @@
                 if (debugMode) {
                     console.log(message);
                 }
+            }
+
+            // Helper function to detect mobile devices
+            function isMobileDevice() {
+                // Returns true if the window width is less than or equal to 768px (common breakpoint)
+                return window.innerWidth <= 768;
             }
 
             // MODIFICATION: Restored the logic to handle the end of a drag gesture
@@ -624,7 +630,7 @@
                 updateZoom();
             });
 
-            // MODIFICATION: Restored the full mouse drag functionality
+            // MODIFICATION: Consolidated mouse and touch handling for drag/pan
             $("#bookWrapper").on('mousedown', function(e) {
                 if (currentZoom > 1) {
                     // If zoomed in, the action is to pan the view
@@ -633,7 +639,7 @@
                     panStartY = e.clientY - panOffsetY;
                     $(this).css("cursor", "grabbing");
                 } else {
-                    // If not zoomed, the action is to drag to flip a page
+                    // If not zoomed, the action is to drag to flip a page (mouse only)
                     isDraggingToFlip = true;
                     dragStartX = e.clientX;
                     dragStartY = e.clientY;
@@ -690,15 +696,53 @@
                 }
             });
 
-            // Touch panning for mobile (unchanged)
+            // Touch panning and preventing touch-to-flip on mobile
             $("#bookWrapper").on('touchstart', function(e) {
-                if (currentZoom > 1 && e.originalEvent.touches.length === 1) {
-                    isPanning = true;
-                    panStartX = e.originalEvent.touches[0].clientX - panOffsetX;
-                    panStartY = e.originalEvent.touches[0].clientY - panOffsetY;
-                    e.preventDefault();
+                if (e.originalEvent.touches.length === 1) {
+                    if (currentZoom > 1) {
+                        // If zoomed in, allow panning
+                        isPanning = true;
+                        panStartX = e.originalEvent.touches[0].clientX - panOffsetX;
+                        panStartY = e.originalEvent.touches[0].clientY - panOffsetY;
+                        e.preventDefault(); // Prevent default browser scroll and turn.js actions for panning
+                    } else if (isMobileDevice() && currentZoom === 1) {
+                        // If on a mobile device AND not zoomed in, disable touch-to-flip
+                        // Prevent default touch event to stop turn.js from handling it for flipping.
+                        e.preventDefault();
+                    }
                 }
             });
+
+            // Only allow custom touch/swipe for flipping on non-mobile devices
+            if (!isMobileDevice()) {
+                let touchStartX = 0;
+                let touchStartY = 0;
+
+                $("#flipbook").on('touchstart', function(e) {
+                    if (e.originalEvent.touches.length === 1) {
+                        touchStartX = e.originalEvent.touches[0].clientX;
+                        touchStartY = e.originalEvent.touches[0].clientY;
+                    }
+                });
+
+                $("#flipbook").on('touchend', function(e) {
+                    const touchEndX = e.originalEvent.changedTouches[0].clientX;
+                    const touchEndY = e.originalEvent.changedTouches[0].clientY;
+
+                    const deltaX = touchEndX - touchStartX;
+                    const deltaY = touchEndY - touchStartY;
+                    const minSwipeDistance = 50;
+
+                    if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > minSwipeDistance) {
+                        if (deltaX > 0) {
+                            $("#flipbook").turn("previous");
+                        } else {
+                            $("#flipbook").turn("next");
+                        }
+                    }
+                });
+            }
+
 
             $(document).on('touchmove', function(e) {
                 if (isPanning && currentZoom > 1 && e.originalEvent.touches.length === 1) {
@@ -718,6 +762,7 @@
                 isPanning = false;
             });
 
+
             // Keyboard navigation (unchanged)
             $(document).keydown(function(e) {
                 if (e.keyCode === 37) {
@@ -734,34 +779,6 @@
                     e.preventDefault();
                     debugMode = !debugMode;
                     debug("Debug mode " + (debugMode ? "enabled" : "disabled"));
-                }
-            });
-
-            // Touch/swipe functionality (unchanged)
-            let touchStartX = 0;
-            let touchStartY = 0;
-
-            $("#flipbook").on('touchstart', function(e) {
-                if (e.originalEvent.touches.length === 1) {
-                    touchStartX = e.originalEvent.touches[0].clientX;
-                    touchStartY = e.originalEvent.touches[0].clientY;
-                }
-            });
-
-            $("#flipbook").on('touchend', function(e) {
-                const touchEndX = e.originalEvent.changedTouches[0].clientX;
-                const touchEndY = e.originalEvent.changedTouches[0].clientY;
-
-                const deltaX = touchEndX - touchStartX;
-                const deltaY = touchEndY - touchStartY;
-                const minSwipeDistance = 50;
-
-                if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > minSwipeDistance) {
-                    if (deltaX > 0) {
-                        $("#flipbook").turn("previous");
-                    } else {
-                        $("#flipbook").turn("next");
-                    }
                 }
             });
 
