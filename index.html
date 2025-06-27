@@ -696,7 +696,7 @@
                 }
             });
 
-            // Touch panning logic (unchanged from previous)
+            // Touch panning logic
             $("#bookWrapper").on('touchstart', function(e) {
                 if (e.originalEvent.touches.length === 1) {
                     if (currentZoom > 1) {
@@ -705,8 +705,6 @@
                         panStartY = e.originalEvent.touches[0].clientY - panOffsetY;
                         e.preventDefault(); // Prevent default browser scroll and turn.js actions for panning
                     }
-                    // MODIFICATION: Removed the else if (isMobileDevice() && currentZoom === 1) { e.preventDefault(); }
-                    // This allows touch events to pass through for custom swipe flipping on mobile when not zoomed.
                 }
             });
 
@@ -735,6 +733,15 @@
                     } else {
                         $("#flipbook").turn("next");
                     }
+                }
+            });
+
+            // NEW MODIFICATION: Prevent tap-to-flip on mobile devices when not zoomed
+            $("#flipbook").on('click', function(e) {
+                // Check if it's a mobile device and not currently zoomed in
+                if (isMobileDevice() && currentZoom === 1) {
+                    // Prevent the default click behavior, which turn.js uses for tapping to flip
+                    e.preventDefault();
                 }
             });
 
