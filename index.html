@@ -696,52 +696,47 @@
                 }
             });
 
-            // Touch panning and preventing touch-to-flip on mobile
+            // Touch panning logic (unchanged from previous)
             $("#bookWrapper").on('touchstart', function(e) {
                 if (e.originalEvent.touches.length === 1) {
                     if (currentZoom > 1) {
-                        // If zoomed in, allow panning
                         isPanning = true;
                         panStartX = e.originalEvent.touches[0].clientX - panOffsetX;
                         panStartY = e.originalEvent.touches[0].clientY - panOffsetY;
                         e.preventDefault(); // Prevent default browser scroll and turn.js actions for panning
-                    } else if (isMobileDevice() && currentZoom === 1) {
-                        // If on a mobile device AND not zoomed in, disable touch-to-flip
-                        // Prevent default touch event to stop turn.js from handling it for flipping.
-                        e.preventDefault();
                     }
+                    // MODIFICATION: Removed the else if (isMobileDevice() && currentZoom === 1) { e.preventDefault(); }
+                    // This allows touch events to pass through for custom swipe flipping on mobile when not zoomed.
                 }
             });
 
-            // Only allow custom touch/swipe for flipping on non-mobile devices
-            if (!isMobileDevice()) {
-                let touchStartX = 0;
-                let touchStartY = 0;
+            // Custom touch/swipe functionality for flipping (now active on all devices)
+            let touchStartX = 0;
+            let touchStartY = 0;
 
-                $("#flipbook").on('touchstart', function(e) {
-                    if (e.originalEvent.touches.length === 1) {
-                        touchStartX = e.originalEvent.touches[0].clientX;
-                        touchStartY = e.originalEvent.touches[0].clientY;
+            $("#flipbook").on('touchstart', function(e) {
+                if (e.originalEvent.touches.length === 1) {
+                    touchStartX = e.originalEvent.touches[0].clientX;
+                    touchStartY = e.originalEvent.touches[0].clientY;
+                }
+            });
+
+            $("#flipbook").on('touchend', function(e) {
+                const touchEndX = e.originalEvent.changedTouches[0].clientX;
+                const touchEndY = e.originalEvent.changedTouches[0].clientY;
+
+                const deltaX = touchEndX - touchStartX;
+                const deltaY = touchEndY - touchStartY;
+                const minSwipeDistance = 50;
+
+                if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > minSwipeDistance) {
+                    if (deltaX > 0) {
+                        $("#flipbook").turn("previous");
+                    } else {
+                        $("#flipbook").turn("next");
                     }
-                });
-
-                $("#flipbook").on('touchend', function(e) {
-                    const touchEndX = e.originalEvent.changedTouches[0].clientX;
-                    const touchEndY = e.originalEvent.changedTouches[0].clientY;
-
-                    const deltaX = touchEndX - touchStartX;
-                    const deltaY = touchEndY - touchStartY;
-                    const minSwipeDistance = 50;
-
-                    if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > minSwipeDistance) {
-                        if (deltaX > 0) {
-                            $("#flipbook").turn("previous");
-                        } else {
-                            $("#flipbook").turn("next");
-                        }
-                    }
-                });
-            }
+                }
+            });
 
 
             $(document).on('touchmove', function(e) {
