@@ -325,33 +325,19 @@
 
         /* Mobile specific styles */
         @media (max-width: 768px) {
+            /* Hide the entire controls section (prev/next buttons) */
             .controls {
-                bottom: 20px;
-                gap: 15px;
+                display: none;
             }
 
-            .control-btn {
-                padding: 10px 20px;
-                font-size: 0.9em;
-            }
-
+            /* Hide the entire zoom controls section */
             .zoom-controls {
-                top: 20px;
-                right: 20px;
-                gap: 8px;
+                display: none;
             }
 
-            .zoom-btn {
-                width: 45px;
-                height: 45px;
-                font-size: 1.3em;
-            }
-
+            /* Hide the page info display (e.g., "Page 1 of 32") */
             .page-info {
-                top: 20px;
-                left: 20px;
-                padding: 10px 16px;
-                font-size: 0.9em;
+                display: none;
             }
 
             /* Hide Turn.js specific elements on mobile */
@@ -362,11 +348,6 @@
             /* Show custom book view on mobile */
             #custom-book-view {
                 display: flex; /* Override hidden for mobile */
-            }
-
-            /* Hide control buttons on mobile, rely on swipe */
-            .control-btn {
-                display: none;
             }
         }
 
@@ -381,8 +362,14 @@
             }
 
             /* Show control buttons on desktop */
-            .control-btn {
-                display: block;
+            .controls {
+                display: flex; /* Ensure it's visible on desktop */
+            }
+            .zoom-controls {
+                display: flex; /* Ensure it's visible on desktop */
+            }
+            .page-info {
+                display: block; /* Ensure it's visible on desktop */
             }
         }
 
@@ -457,7 +444,7 @@
             let touchStartY = 0;
             let touchEndTime = 0;
             let touchStartTime = 0;
-            const SWIPE_THRESHOLD_X = 50; // Minimum horizontal distance for a valid swipe
+            const SWIPE_THRESHOLD_X = 20; // Decreased for higher sensitivity
             const SWIPE_THRESHOLD_Y = 30; // Maximum vertical deviation for a horizontal swipe
             const SWIPE_TIME_THRESHOLD = 500; // Max time for a swipe gesture
             let isTransitioning = false; // FIX: Prevents new transitions during an active one
@@ -681,7 +668,8 @@
                 if (isMobileView) {
                     $("#flipbook").hide();
                     $("#custom-book-view").show();
-                    $("#prevBtn, #nextBtn").hide();
+                    // No need to hide buttons with JS anymore, as CSS handles it
+                    // $("#prevBtn, #nextBtn").hide(); 
 
                     $("#custom-book-view").css({
                         width: size.width,
@@ -719,7 +707,7 @@
                 } else {
                     $("#flipbook").show();
                     $("#custom-book-view").hide();
-                    $("#prevBtn, #nextBtn").show();
+                    $("#prevBtn, #nextBtn").show(); // Ensure desktop buttons are shown
 
                     if (!$("#flipbook").data('turn-page-wrapper')) {
                         generateTurnJsPages();
@@ -825,10 +813,10 @@
 
                 // Set initial position for the new page and final position for the old page
                 if (targetPage > currentPage) { // Moving to next page
-                    newPageWrapper.css('transform', 'translateX(100%)'); // New page starts from right
+                    newPageWrapper.addClass('coming-next'); // New page starts from right
                     oldPageWrapper.addClass('moving-next'); // Old page moves left
                 } else { // Moving to previous page
-                    newPageWrapper.css('transform', 'translateX(-100%)'); // New page starts from left
+                    newPageWrapper.addClass('coming-prev'); // New page starts from left
                     oldPageWrapper.addClass('moving-prev'); // Old page moves right
                 }
 
@@ -839,24 +827,27 @@
                 newPageWrapper[0].offsetWidth;
 
                 // Animate the new page to the center and the old page out
-                newPageWrapper.css('transform', 'translateX(0%)');
+                // Remove the 'coming' classes to trigger the transition to translateX(0%)
+                newPageWrapper.removeClass('coming-next coming-prev');
 
                 // After transition, clean up the DOM and update state
-                setTimeout(() => {
+                // Use 'transitionend' event for more reliable timing
+                newPageWrapper.one('transitionend', function() {
                     oldPageWrapper.remove();
-                    newPageWrapper.removeClass('coming-next coming-prev').addClass('current');
+                    newPageWrapper.addClass('current'); // Ensure new page has 'current'
                     currentPage = targetPage;
                     updatePageInfo();
                     preloadPages(currentPage);
                     isTransitioning = false; // Release the lock
                     debug(`Transition finished. Current page: ${currentPage}`);
-                }, 500); // This duration must match the CSS transition duration
+                });
             }
 
             // Update page info display
             function updatePageInfo() {
                 $("#pageInfo").text(`Page ${currentPage} of ${TOTAL_PAGES}`);
-                if (!isMobileView) { // Buttons only for desktop
+                // Only enable/disable buttons on desktop
+                if (!isMobileView) { 
                     $("#prevBtn").prop("disabled", currentPage === 1);
                     $("#nextBtn").prop("disabled", currentPage === TOTAL_PAGES);
                 }
@@ -882,9 +873,12 @@
                 bookWrapper.css("transform", `scale(${currentZoom}) translate(${panOffsetX}px, ${panOffsetY}px)`);
                 $("#zoomLevel").text(`${Math.round(currentZoom * 100)}%`);
 
-                $("#zoomOutBtn").prop("disabled", currentZoom <= 1);
-                $("#zoomInBtn").prop("disabled", currentZoom >= 2);
-                $("#resetBtn").prop("disabled", currentZoom === 1 && panOffsetX === 0 && panOffsetY === 0);
+                // Only update zoom button states on desktop
+                if (!isMobileView) {
+                    $("#zoomOutBtn").prop("disabled", currentZoom <= 1);
+                    $("#zoomInBtn").prop("disabled", currentZoom >= 2);
+                    $("#resetBtn").prop("disabled", currentZoom === 1 && panOffsetX === 0 && panOffsetY === 0);
+                }
             }
 
             // Event handlers (desktop controls unchanged)
@@ -901,24 +895,33 @@
             });
 
             $("#zoomInBtn").click(function() {
-                if (currentZoom < 2) {
-                    currentZoom = Math.min(2, currentZoom + 0.1);
-                    updateZoom();
+                // Ensure this only affects desktop or when explicitly called
+                if (!isMobileView) { // Keep this check or remove if you want mobile to use these methods via other triggers
+                    if (currentZoom < 2) {
+                        currentZoom = Math.min(2, currentZoom + 0.1);
+                        updateZoom();
+                    }
                 }
             });
 
             $("#zoomOutBtn").click(function() {
-                if (currentZoom > 1) {
-                    currentZoom = Math.max(1, currentZoom - 0.1);
-                    updateZoom();
+                // Ensure this only affects desktop or when explicitly called
+                if (!isMobileView) { // Keep this check or remove if you want mobile to use these methods via other triggers
+                    if (currentZoom > 1) {
+                        currentZoom = Math.max(1, currentZoom - 0.1);
+                        updateZoom();
+                    }
                 }
             });
 
             $("#resetBtn").click(function() {
-                currentZoom = 1;
-                panOffsetX = 0;
-                panOffsetY = 0;
-                updateZoom();
+                // Ensure this only affects desktop or when explicitly called
+                if (!isMobileView) { // Keep this check or remove if you want mobile to use these methods via other triggers
+                    currentZoom = 1;
+                    panOffsetX = 0;
+                    panOffsetY = 0;
+                    updateZoom();
+                }
             });
 
             // Custom Mobile Swipe Logic
@@ -971,7 +974,7 @@
                         }
                     }
                 } else if (Math.abs(deltaX) < 10 && Math.abs(deltaY) < 10 && swipeDuration < 200) {
-                    // Tap logic
+                    // Tap logic (now handles full screen tap for next/prev)
                     const tapX = e.originalEvent.changedTouches[0].clientX;
                     const bookRect = $(this)[0].getBoundingClientRect();
                     const bookCenterX = bookRect.left + bookRect.width / 2;
@@ -1073,10 +1076,10 @@
                     }
                 } else if (e.keyCode === 187 || e.keyCode === 107) { // Plus or Numpad Plus
                     e.preventDefault();
-                    $("#zoomInBtn").click();
+                    if (!isMobileView) $("#zoomInBtn").click(); // Only trigger on desktop
                 } else if (e.keyCode === 189 || e.keyCode === 109) { // Minus or Numpad Minus
                     e.preventDefault();
-                    $("#zoomOutBtn").click();
+                    if (!isMobileView) $("#zoomOutBtn").click(); // Only trigger on desktop
                 } else if (e.keyCode === 68 && e.ctrlKey) { // Ctrl + D
                     e.preventDefault();
                     debugMode = !debugMode;
@@ -1122,10 +1125,13 @@
 
                 } else if (e.ctrlKey) { // Ctrl+wheel zooms for both desktop and mobile
                     e.preventDefault();
-                    if (e.originalEvent.deltaY < 0) {
-                        $("#zoomInBtn").click();
-                    } else {
-                        $("#zoomOutBtn").click();
+                    // Only trigger zoom on desktop
+                    if (!isMobileView) {
+                        if (e.originalEvent.deltaY < 0) {
+                            $("#zoomInBtn").click();
+                        } else {
+                            $("#zoomOutBtn").click();
+                        }
                     }
                 }
             });
