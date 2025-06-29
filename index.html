@@ -13,7 +13,7 @@
         }
 
         body {
-            font-family: 'Arial', sans-serif;
+            font-family: 'Arial', sans-serif';
             background: #5c4033;
             min-height: 100vh;
             display: flex;
@@ -511,7 +511,7 @@
             // Variables for responsive sizing and zoom
             let currentZoom = 1;
             let currentPage = 1; // Tracks the current actual page number (1 to TOTAL_PAGES)
-            let debugMode = false;
+            let debugMode = true; // Set to true for debugging, false for production
             let currentDisplayMode = ''; // To store 'single' or 'double'
 
             // Pan/drag variables
@@ -579,7 +579,7 @@
                          targetImageElement.addClass('loaded');
                          targetImageElement.parent().removeClass('loading');
                     }
-                    debug(`Page ${pageNumber} already loaded.`);
+                    debug(`✓ Page ${pageNumber} already loaded.`);
                     return Promise.resolve();
                 }
 
@@ -1077,37 +1077,51 @@
                 clearTimeout(this.resizeTimeout);
                 this.resizeTimeout = setTimeout(resizeHandler, 200);
             });
+            
+            // --- UPDATED ORIENTATION DETECTION AND RELOAD LOGIC ---
+            const mediaQueryMobilePortrait = window.matchMedia("(max-width: 768px) and (orientation: portrait)");
+            const mediaQueryMobileLandscape = window.matchMedia("(max-width: 768px) and (orientation: landscape)");
 
-            // NEW: Function to check orientation and trigger reload if needed
-            function checkOrientationAndReload() {
-                const isMobile = window.matchMedia("(max-width: 768px)").matches;
-                const isLandscape = window.matchMedia("(orientation: landscape)").matches;
+            function handleOrientationChange() {
+                // Use a short delay to ensure browser has fully updated its orientation state
+                setTimeout(() => {
+                    const isMobile = window.matchMedia("(max-width: 768px)").matches;
+                    const isLandscape = window.matchMedia("(orientation: landscape)").matches;
 
-                const wasLandscapeMessageShown = sessionStorage.getItem('landscapeMessageShown') === 'true';
+                    const wasLandscapeMessageShown = sessionStorage.getItem('landscapeMessageShown') === 'true';
 
-                if (isMobile) {
-                    if (isLandscape) {
-                        sessionStorage.setItem('landscapeMessageShown', 'true'); // Set flag when message is displayed
-                    } else { // Portrait
-                        if (wasLandscapeMessageShown) {
-                            sessionStorage.removeItem('landscapeMessageShown'); // Clear flag
-                            // Only reload if the message was previously shown
-                            location.reload(); 
+                    debug(`Orientation Change Detected: isMobile=${isMobile}, isLandscape=${isLandscape}, wasLandscapeMessageShown=${wasLandscapeMessageShown}`);
+
+                    if (isMobile) {
+                        if (isLandscape) {
+                            debug("Current: Mobile Landscape. Setting flag.");
+                            sessionStorage.setItem('landscapeMessageShown', 'true'); // Set flag when message is displayed
+                        } else { // Portrait
+                            debug("Current: Mobile Portrait.");
+                            if (wasLandscapeMessageShown) {
+                                debug("Previous: Landscape. Reloading page.");
+                                sessionStorage.removeItem('landscapeMessageShown'); // Clear flag
+                                location.reload(); // Only reload if the message was previously shown
+                            } else {
+                                debug("Previous: Not Landscape. No reload needed.");
+                            }
                         }
+                    } else {
+                        debug("Current: Desktop. Clearing flag.");
+                        sessionStorage.removeItem('landscapeMessageShown'); // Always clear the flag if not on mobile (desktop context)
                     }
-                } else {
-                    // Always clear the flag if not on mobile (desktop context)
-                    sessionStorage.removeItem('landscapeMessageShown');
-                }
+                }, 100); // Small delay
             }
 
-            // Listen for orientation change events
-            $(window).on('orientationchange', function() {
-                checkOrientationAndReload();
-            });
+            // Add listeners for changes in specific media queries
+            mediaQueryMobilePortrait.addListener(handleOrientationChange);
+            mediaQueryMobileLandscape.addListener(handleOrientationChange);
 
-            // Also check on initial load
-            checkOrientationAndReload();
+            // Initial check on page load
+            handleOrientationChange();
+
+            // --- END UPDATED ORIENTATION DETECTION AND RELOAD LOGIC ---
+
 
             // Initial setup
             initializeBookView();
