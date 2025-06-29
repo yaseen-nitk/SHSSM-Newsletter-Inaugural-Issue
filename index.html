@@ -1078,6 +1078,36 @@
                 this.resizeTimeout = setTimeout(resizeHandler, 200);
             });
 
+            // NEW: Function to check orientation and trigger reload if needed
+            function checkOrientationAndReload() {
+                const isMobile = window.matchMedia("(max-width: 768px)").matches;
+                const isLandscape = window.matchMedia("(orientation: landscape)").matches;
+
+                const wasLandscapeMessageShown = sessionStorage.getItem('landscapeMessageShown') === 'true';
+
+                if (isMobile) {
+                    if (isLandscape) {
+                        sessionStorage.setItem('landscapeMessageShown', 'true'); // Set flag when message is displayed
+                    } else { // Portrait
+                        if (wasLandscapeMessageShown) {
+                            sessionStorage.removeItem('landscapeMessageShown'); // Clear flag
+                            // Only reload if the message was previously shown
+                            location.reload(); 
+                        }
+                    }
+                } else {
+                    // Always clear the flag if not on mobile (desktop context)
+                    sessionStorage.removeItem('landscapeMessageShown');
+                }
+            }
+
+            // Listen for orientation change events
+            $(window).on('orientationchange', function() {
+                checkOrientationAndReload();
+            });
+
+            // Also check on initial load
+            checkOrientationAndReload();
 
             // Initial setup
             initializeBookView();
