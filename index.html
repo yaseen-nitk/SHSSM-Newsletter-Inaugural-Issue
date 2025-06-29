@@ -96,7 +96,7 @@
             position: relative;
             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
             /* This will now be displayed on all screen sizes */
-            display: block; 
+            display: block;
         }
 
         .page {
@@ -137,7 +137,7 @@
             position: relative;
             z-index: 6;
         }
-        
+
         .page img.loaded,
         .custom-page-image.loaded {
             opacity: 1;
@@ -218,6 +218,7 @@
             text-align: center;
             backdrop-filter: blur(10px);
             min-width: 60px;
+            color: white;
         }
 
         .page-info {
@@ -347,7 +348,7 @@
                 display: none;
             }
 
-            /* Hide the entire zoom controls section */
+            /* Hide the entire zoom controls section on mobile */
             .zoom-controls {
                 display: none;
             }
@@ -359,17 +360,17 @@
 
             /* Turn.js specific elements are now always displayed */
             #flipbook {
-                display: block; 
+                display: block;
             }
 
             /* Hide custom book view on mobile */
             #custom-book-view {
-                display: none; 
+                display: none;
             }
 
             /* Hide swipe hint on mobile */
             .swipe-hint {
-                display: none; 
+                display: none;
             }
         }
 
@@ -385,13 +386,13 @@
 
             /* Show control buttons on desktop */
             .controls {
-                display: flex; 
+                display: flex;
             }
             .zoom-controls {
-                display: flex; 
+                display: flex;
             }
             .page-info {
-                display: block; 
+                display: block;
             }
 
             /* Hide swipe hint on desktop */
@@ -461,7 +462,7 @@
             let currentZoom = 1;
             let currentPage = 1; // Tracks the current actual page number (1 to TOTAL_PAGES)
             let debugMode = false;
-            let isMobileView = false; // Flag to determine current view mode
+            let currentDisplayMode = ''; // To store 'single' or 'double'
 
             // Pan/drag variables
             let isPanning = false;
@@ -476,6 +477,10 @@
             let swipeStartTime = 0;
             const SWIPE_THRESHOLD_X = 20; // Decreased for higher sensitivity
             const SWIPE_TIME_THRESHOLD = 500; // Max time for a swipe gesture
+
+            // Pinch-to-zoom variables
+            let initialDistance = null;
+            let initialZoom = 1;
 
 
             // Image loading management
@@ -522,10 +527,11 @@
                 }
                 const existingImage = loadedImages.get(pageNumber);
                 if (existingImage && existingImage.src === imageSrc && existingImage.complete) {
-                    if (containerElement) {
-                        $(containerElement).find('img').addClass('loaded'); // Simpler selector as custom-page-image is gone
-                    } else {
-                        $(`.page[data-page="${pageNumber}"]`).find('img').addClass('loaded');
+                    // Check if the image element exists and has the 'loaded' class
+                    const targetImageElement = $(`.page[data-page="${pageNumber}"] img`);
+                    if (targetImageElement.length && !targetImageElement.hasClass('loaded')) {
+                         targetImageElement.addClass('loaded');
+                         targetImageElement.parent().removeClass('loading');
                     }
                     debug(`Page ${pageNumber} already loaded.`);
                     return Promise.resolve();
@@ -535,18 +541,15 @@
                 debug(`Attempting to load image for page ${pageNumber}: ${imageSrc}`);
 
                 let pageContainer;
-                if (containerElement) {
-                    pageContainer = $(containerElement);
-                } else {
-                    pageContainer = $(`.page[data-page="${pageNumber}"]`);
-                }
+                // For Turn.js, containerElement will usually be null here as we are targeting pages directly
+                pageContainer = $(`.page[data-page="${pageNumber}"]`);
 
                 if (!pageContainer.length) {
                     debug(`Error: No page container found for page ${pageNumber}. Cannot attach image elements.`);
                     loadingQueue.delete(pageNumber);
                     return Promise.resolve();
                 }
-                
+
                 pageContainer.addClass('loading');
 
                 const imgElement = pageContainer.find('img');
@@ -603,7 +606,7 @@
                 const currentView = $("#flipbook").turn("view");
                 if (currentView[0]) pagesToLoad.add(currentView[0]);
                 if (currentView[1] && currentView[1] !== currentView[0]) pagesToLoad.add(currentView[1]);
-                
+
 
                 for (let i = 1; i <= TOTAL_PAGES; i++) {
                     if (i >= centerPage - PRELOAD_RANGE && i <= centerPage + PRELOAD_RANGE) {
@@ -640,58 +643,71 @@
                 const maxHeightFactor = 0.8;
 
                 let scale = 1;
-                let isCurrentMobile = (windowWidth <= 768); // Determine mobile view based on width
+                // A more robust way to determine mobile view: consider aspect ratio or device type
+                // For simplicity, let's stick to max-width for now, but be aware of its limitations
+                const isCurrentMobile = (windowWidth <= 768);
+                let displayMode = 'double';
+
+                if (windowWidth <= 768 || windowHeight > windowWidth) { // Portrait or small width device
+                    displayMode = 'single';
+                } else { // Landscape on larger screens / tablets
+                    displayMode = 'double';
+                }
 
 
-                if (isCurrentMobile) {
-                    // For mobile, display single page
+                if (displayMode === 'single') {
                     if (exactPageWidth > windowWidth * maxWidthFactor) {
                         scale = (windowWidth * maxWidthFactor) / exactPageWidth;
                     }
                     if (exactPageHeight * scale > windowHeight * maxHeightFactor) {
                         scale = (windowHeight * maxHeightFactor) / exactPageHeight;
                     }
-                    return {
-                        width: Math.floor(exactPageWidth * scale),
-                        height: Math.floor(exactPageHeight * scale),
-                        isMobile: isCurrentMobile,
-                        display: 'single' // Force single page display for mobile
-                    };
-                } else {
-                    // For desktop, display double page
+                } else { // Double page display
                     if (exactPageWidth * 2 > windowWidth * maxWidthFactor) {
                         scale = (windowWidth * maxWidthFactor) / (exactPageWidth * 2);
                     }
                     if (exactPageHeight * scale > windowHeight * maxHeightFactor) {
                         scale = (windowHeight * maxHeightFactor) / exactPageHeight;
                     }
-                    return {
-                        width: Math.floor(exactPageWidth * 2 * scale),
-                        height: Math.floor(exactPageHeight * scale),
-                        isMobile: isCurrentMobile,
-                        display: 'double' // Force double page display for desktop
-                    };
                 }
+
+                return {
+                    width: Math.floor(exactPageWidth * (displayMode === 'double' ? 2 : 1) * scale),
+                    height: Math.floor(exactPageHeight * scale),
+                    display: displayMode
+                };
             }
 
             // Initialize the book view (now always Turn.js)
             function initializeBookView() {
                 const size = calculateOptimalSize();
-                isMobileView = size.isMobile; // Update the flag
+                const newDisplayMode = size.display;
 
                 $(document).off('.pan'); // Unbind old pan handlers
 
-                // Turn.js will always be used
-                if (!$("#flipbook").data('turn-page-wrapper')) {
+                const flipbook = $("#flipbook");
+
+                // Check if display mode or overall dimensions have significantly changed
+                // This is crucial for re-rendering Turn.js correctly
+                if (!flipbook.data('turn-page-wrapper') ||
+                    currentDisplayMode !== newDisplayMode ||
+                    flipbook.width() !== size.width ||
+                    flipbook.height() !== size.height) {
+
+                    if (flipbook.data('turn-page-wrapper')) {
+                        flipbook.turn('destroy');
+                        flipbook.empty(); // Clear previous pages
+                    }
+
                     generateTurnJsPages();
-                    $("#flipbook").turn({
+                    flipbook.turn({
                         width: size.width,
                         height: size.height,
                         elevation: 50,
                         gradients: true,
                         autoCenter: true,
                         duration: 1000,
-                        display: size.display, // Use calculated display type
+                        display: newDisplayMode, // Use calculated display type
                         when: {
                             turned: function(event, page, view) {
                                 currentPage = page;
@@ -703,43 +719,46 @@
                             }
                         }
                     });
-                    $("#flipbook").turn("page", currentPage);
+                    flipbook.turn("page", currentPage);
                 } else {
-                    $("#flipbook").turn("size", size.width, size.height);
-                    $("#flipbook").turn("display", size.display); // Update display type if needed
-                    $("#flipbook").turn("page", currentPage);
+                    // Only update size and display if the book is already initialized and the core display mode hasn't changed
+                    flipbook.turn("size", size.width, size.height);
+                    flipbook.turn("display", newDisplayMode);
+                    flipbook.turn("page", currentPage);
                 }
+
+                currentDisplayMode = newDisplayMode; // Update the global display mode flag
 
                 // Adjust page width for single/double display
                 $(".page").css({
-                    width: size.display === 'double' ? size.width / 2 : size.width,
+                    width: currentDisplayMode === 'double' ? size.width / 2 : size.width,
                     height: size.height
                 });
-                
+
                 // Re-bind pan handlers for zoomed mobile view (now for Turn.js)
-                if (isMobileView) {
-                    $(document).on('touchmove.pan', function(e) {
-                        if (isPanning && currentZoom > 1 && e.originalEvent.touches.length === 1) {
-                            panOffsetX = e.originalEvent.touches[0].clientX - panStartX;
-                            panOffsetY = e.originalEvent.touches[0].clientY - panStartY;
-                            
-                            const contentWidth = size.width; // Single page width for mobile
-                            const contentHeight = size.height;
-                            const maxPanX = (contentWidth * currentZoom - contentWidth) / 2;
-                            const maxPanY = (contentHeight * currentZoom - contentHeight) / 2;
+                // This section still applies to zoomed state regardless of 'mobile' flag,
+                // as zoom controls are always available on desktop.
+                $(document).on('touchmove.pan', function(e) {
+                    if (isPanning && currentZoom > 1 && e.originalEvent.touches.length === 1) {
+                        panOffsetX = e.originalEvent.touches[0].clientX - panStartX;
+                        panOffsetY = e.originalEvent.touches[0].clientY - panStartY;
 
-                            panOffsetX = Math.max(-maxPanX, Math.min(maxPanX, panOffsetX));
-                            panOffsetY = Math.max(-maxPanY, Math.min(maxPanY, panOffsetY));
+                        const contentWidth = currentDisplayMode === 'double' ? size.width / 2 : size.width;
+                        const contentHeight = size.height;
+                        const maxPanX = (contentWidth * currentZoom - contentWidth) / 2;
+                        const maxPanY = (contentHeight * currentZoom - contentHeight) / 2;
 
-                            $("#flipbook").css("transform", `scale(${currentZoom}) translate(${panOffsetX}px, ${panOffsetY}px)`);
-                            e.preventDefault();
-                        }
-                    }).on('touchend.pan', function() {
-                        if (isPanning) {
-                            isPanning = false;
-                        }
-                    });
-                }
+                        panOffsetX = Math.max(-maxPanX, Math.min(maxPanX, panOffsetX));
+                        panOffsetY = Math.max(-maxPanY, Math.min(maxPanY, panOffsetY));
+
+                        $("#flipbook").css("transform", `scale(${currentZoom}) translate(${panOffsetX}px, ${panOffsetY}px)`);
+                        e.preventDefault();
+                    }
+                }).on('touchend.pan', function() {
+                    if (isPanning) {
+                        isPanning = false;
+                    }
+                });
 
 
                 updatePageInfo();
@@ -749,6 +768,7 @@
 
             function generateTurnJsPages() {
                 const flipbook = $("#flipbook");
+                // Ensure flipbook is empty before adding pages, especially if re-generating
                 flipbook.empty();
 
                 for (let i = 1; i <= TOTAL_PAGES; i++) {
@@ -834,21 +854,66 @@
                 updateZoom();
             });
 
-            // Mobile specific tap logic (using Turn.js internal swipe)
+            // Mobile specific tap logic and Pinch-to-Zoom
             $("#flipbook").on('touchstart', function(e) {
-                 if (currentZoom > 1) {
+                 if (e.originalEvent.touches.length === 2) { // Pinch-to-zoom start
+                    initialDistance = Math.hypot(
+                        e.originalEvent.touches[0].pageX - e.originalEvent.touches[1].pageX,
+                        e.originalEvent.touches[0].pageY - e.originalEvent.touches[1].pageY
+                    );
+                    initialZoom = currentZoom;
+                    isPanning = false; // Disable panning during pinch
+                 } else if (currentZoom > 1 && e.originalEvent.touches.length === 1) { // Pan when zoomed
                     isPanning = true;
                     panStartX = e.originalEvent.touches[0].clientX - panOffsetX;
                     panStartY = e.originalEvent.touches[0].clientY - panOffsetY;
-                    // Allow Turn.js to handle default behavior for non-panning
-                 } else {
-                    // For non-zoomed state, record touch start for swipe detection
+                 } else if (e.originalEvent.touches.length === 1) { // Single touch for potential swipe
                     isPotentialSwipe = true;
                     swipeStartX = e.originalEvent.touches[0].clientX;
                     swipeStartTime = Date.now();
                  }
+                 // Prevent default Turn.js drag behavior only if handling custom zoom/pan
+                 if (currentZoom > 1 || e.originalEvent.touches.length === 2) {
+                    e.preventDefault();
+                 }
+            }).on('touchmove', function(e) {
+                if (e.originalEvent.touches.length === 2 && initialDistance !== null) { // Pinch-to-zoom
+                    e.preventDefault(); // Prevent default scrolling
+                    const currentDistance = Math.hypot(
+                        e.originalEvent.touches[0].pageX - e.originalEvent.touches[1].pageX,
+                        e.originalEvent.touches[0].pageY - e.originalEvent.touches[1].pageY
+                    );
+                    let zoomFactor = currentDistance / initialDistance;
+                    currentZoom = Math.max(1, Math.min(2, initialZoom * zoomFactor)); // Limit zoom between 1 and 2
+                    updateZoom();
+                } else if (isPanning && currentZoom > 1 && e.originalEvent.touches.length === 1) {
+                    panOffsetX = e.originalEvent.touches[0].clientX - panStartX;
+                    panOffsetY = e.originalEvent.touches[0].clientY - panStartY;
+
+                    const size = calculateOptimalSize();
+                    const contentWidth = currentDisplayMode === 'double' ? size.width / 2 : size.width;
+                    const contentHeight = size.height;
+                    const maxPanX = (contentWidth * currentZoom - contentWidth) / 2;
+                    const maxPanY = (contentHeight * currentZoom - contentHeight) / 2;
+
+                    panOffsetX = Math.max(-maxPanX, Math.min(maxPanX, panOffsetX));
+                    panOffsetY = Math.max(-maxPanY, Math.min(maxPanY, panOffsetY));
+
+                    $("#flipbook").css("transform", `scale(${currentZoom}) translate(${panOffsetX}px, ${panOffsetY}px)`);
+                    e.preventDefault(); // Prevent page scrolling
+                } else if (isPotentialSwipe) {
+                    // Prevent default touchmove to avoid scrolling the page
+                    // but allow Turn.js to handle its own drag animation for flipping
+                    // Only prevent if we're doing a horizontal swipe
+                    const deltaX = e.originalEvent.touches[0].clientX - swipeStartX;
+                    const deltaY = e.originalEvent.touches[0].clientY; // Just checking if vertical movement is significant
+                    if (Math.abs(deltaX) > Math.abs(deltaY)) {
+                         e.preventDefault();
+                    }
+                }
             }).on('touchend', function(e) {
-                if (currentZoom > 1) {
+                initialDistance = null; // Reset pinch-to-zoom
+                if (isPanning) {
                     isPanning = false;
                 } else if (isPotentialSwipe) {
                     isPotentialSwipe = false;
@@ -856,22 +921,14 @@
                     const deltaX = swipeEndX - swipeStartX;
                     const swipeDuration = Date.now() - swipeStartTime;
 
-                    // Apply swipe logic if conditions met
-                    if (swipeDuration < SWIPE_TIME_THRESHOLD && Math.abs(deltaX) > SWIPE_THRESHOLD_X) {
+                    // Apply swipe logic if conditions met AND not currently zoomed in
+                    if (currentZoom === 1 && swipeDuration < SWIPE_TIME_THRESHOLD && Math.abs(deltaX) > SWIPE_THRESHOLD_X) {
                         if (deltaX < 0) {
                             $("#flipbook").turn("next");
                         } else {
                             $("#flipbook").turn("previous");
                         }
                     }
-                }
-            }).on('touchmove', function(e) {
-                if (currentZoom > 1) {
-                    // Pan logic handled above in `touchmove.pan`
-                } else if (isPotentialSwipe) {
-                    // Prevent default touchmove to avoid scrolling the page
-                    // but allow Turn.js to handle its own drag animation
-                    e.preventDefault(); 
                 }
             });
 
@@ -888,7 +945,7 @@
                     isPotentialSwipe = true;
                     swipeStartX = e.clientX;
                     swipeStartTime = Date.now();
-                    e.preventDefault(); 
+                    e.preventDefault();
                 }
             }).on('mouseup', function(e) {
                 if (isPotentialSwipe) {
@@ -897,7 +954,7 @@
                     const deltaX = swipeEndX - swipeStartX;
                     const swipeDuration = Date.now() - swipeStartTime;
 
-                    if (swipeDuration < SWIPE_TIME_THRESHOLD && Math.abs(deltaX) > SWIPE_THRESHOLD_X) {
+                    if (currentZoom === 1 && swipeDuration < SWIPE_TIME_THRESHOLD && Math.abs(deltaX) > SWIPE_THRESHOLD_X) {
                         if (deltaX < 0) {
                             $("#flipbook").turn("next");
                         } else {
@@ -918,8 +975,7 @@
                     panOffsetY = e.clientY - panStartY;
 
                     const size = calculateOptimalSize();
-                    // Content width depends on if it's single or double page view for Turn.js
-                    const contentWidth = size.display === 'double' ? size.width / 2 : size.width; 
+                    const contentWidth = currentDisplayMode === 'double' ? size.width / 2 : size.width;
                     const contentHeight = size.height;
                     const maxPanX = (contentWidth * currentZoom - contentWidth) / 2;
                     const maxPanY = (contentHeight * currentZoom - contentHeight) / 2;
@@ -946,10 +1002,16 @@
                     $("#flipbook").turn("next");
                 } else if (e.keyCode === 187 || e.keyCode === 107) { // Plus or Numpad Plus
                     e.preventDefault();
-                    $("#zoomInBtn").click(); 
+                    if (currentZoom < 2) { // Simulate zoom in button click
+                        currentZoom = Math.min(2, currentZoom + 0.1);
+                        updateZoom();
+                    }
                 } else if (e.keyCode === 189 || e.keyCode === 109) { // Minus or Numpad Minus
                     e.preventDefault();
-                    $("#zoomOutBtn").click(); 
+                    if (currentZoom > 1) { // Simulate zoom out button click
+                        currentZoom = Math.max(1, currentZoom - 0.1);
+                        updateZoom();
+                    }
                 } else if (e.keyCode === 68 && e.ctrlKey) { // Ctrl + D
                     e.preventDefault();
                     debugMode = !debugMode;
@@ -970,9 +1032,15 @@
                     } else { // Ctrl key, zoom
                         e.preventDefault();
                         if (e.originalEvent.deltaY < 0) {
-                            $("#zoomInBtn").click();
+                            if (currentZoom < 2) {
+                                currentZoom = Math.min(2, currentZoom + 0.1);
+                                updateZoom();
+                            }
                         } else {
-                            $("#zoomOutBtn").click();
+                            if (currentZoom > 1) {
+                                currentZoom = Math.max(1, currentZoom - 0.1);
+                                updateZoom();
+                            }
                         }
                     }
                 } else if (currentZoom > 1 && !e.ctrlKey) { // Zoomed in, wheel without Ctrl pans
@@ -982,7 +1050,7 @@
                     panOffsetY -= e.originalEvent.deltaY * sensitivity;
 
                     const size = calculateOptimalSize();
-                    const contentWidth = size.display === 'double' ? size.width / 2 : size.width;
+                    const contentWidth = currentDisplayMode === 'double' ? size.width / 2 : size.width;
                     const contentHeight = size.height;
                     const maxPanX = (contentWidth * currentZoom - contentWidth) / 2;
                     const maxPanY = (contentHeight * currentZoom - contentHeight) / 2;
@@ -992,12 +1060,18 @@
 
                     $("#flipbook").css("transform", `scale(${currentZoom}) translate(${panOffsetX}px, ${panOffsetY}px)`);
 
-                } else if (e.ctrlKey) { // Ctrl+wheel zooms 
+                } else if (e.ctrlKey) { // Ctrl+wheel zooms
                     e.preventDefault();
                     if (e.originalEvent.deltaY < 0) {
-                        $("#zoomInBtn").click();
+                        if (currentZoom < 2) {
+                            currentZoom = Math.min(2, currentZoom + 0.1);
+                            updateZoom();
+                        }
                     } else {
-                        $("#zoomOutBtn").click();
+                        if (currentZoom > 1) {
+                            currentZoom = Math.max(1, currentZoom - 0.1);
+                            updateZoom();
+                        }
                     }
                 }
             });
@@ -1018,7 +1092,7 @@
             initializeBookView();
             // Initial preload: load the first page and its immediate neighbors
             Promise.all([
-                loadImage(1, isMobileView ? $('#custom-book-view .custom-page-wrapper.current') : null),
+                loadImage(1),
                 loadImage(2),
                 loadImage(3),
                 loadImage(4)
