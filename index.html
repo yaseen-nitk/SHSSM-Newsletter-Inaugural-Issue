@@ -374,6 +374,56 @@
             }
         }
 
+        /* NEW CSS FOR LANDSCAPE MODE ON MOBILE */
+        @media only screen and (max-width: 768px) and (orientation: landscape) {
+            .flipbook-container,
+            .controls,
+            .zoom-controls,
+            .page-info,
+            .swipe-hint,
+            #flipbook,
+            #custom-book-view {
+                display: none !important;
+            }
+
+            body::before {
+                content: "Please rotate your device to portrait mode.";
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background-color: #333;
+                color: white;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                font-size: 1.2em;
+                text-align: center;
+                z-index: 9999;
+            }
+        }
+
+        /* Ensure flipbook is shown in portrait on mobile */
+        @media only screen and (max-width: 768px) and (orientation: portrait) {
+            .flipbook-container {
+                display: flex; /* Ensure it's visible in portrait */
+            }
+            /* Re-apply existing mobile specific display rules for other elements */
+            .controls,
+            .zoom-controls,
+            .page-info {
+                display: none;
+            }
+            .swipe-hint {
+                display: none;
+            }
+            body::before { /* Hide the message when in portrait */
+                content: none;
+            }
+        }
+
+
         /* Desktop specific styles */
         @media (min-width: 769px) {
             #custom-book-view {
