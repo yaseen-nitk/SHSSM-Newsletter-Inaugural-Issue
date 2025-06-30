@@ -733,45 +733,96 @@
 
                 const flipbook = $("#flipbook");
 
-                // Check if display mode or overall dimensions have significantly changed
-                // This is crucial for re-rendering Turn.js correctly
-                if (!flipbook.data('turn-page-wrapper') || 
-                    currentDisplayMode !== newDisplayMode ||
-                    flipbook.width() !== size.width || 
-                    flipbook.height() !== size.height) {
+                // Check if flipbook is not initialized
+if (!flipbook.data('turn-page-wrapper')) {
+    // First time initialization
+    generateTurnJsPages();
+    debug("Generated new pages for flipbook.");
 
-                    if (flipbook.data('turn-page-wrapper')) {
-                        flipbook.turn('destroy');
-                        flipbook.empty(); // Clear previous pages
+    flipbook.turn({
+        width: size.width,
+        height: size.height,
+        elevation: 50,
+        gradients: true,
+        autoCenter: true,
+        duration: 1000,
+        display: newDisplayMode,
+        when: {
+            turned: function(event, page, view) {
+                currentPage = page;
+                updatePageInfo();
+                preloadPages(currentPage);
+            },
+            turning: function(event, page, view) {
+                preloadPages(page);
+            }
+        }
+    });
+    debug(`Turn.js initialized with display: ${newDisplayMode}, width: ${size.width}, height: ${size.height}`);
+    flipbook.turn("page", currentPage);
+} else {
+    // Update existing instance - be more careful about when to destroy/recreate
+    try {
+        if (currentDisplayMode !== newDisplayMode) {
+            // Only destroy and recreate if display mode actually changed
+            const currentPageBeforeDestroy = flipbook.turn("page");
+            flipbook.turn('destroy');
+            flipbook.empty();
+            generateTurnJsPages();
+            
+            flipbook.turn({
+                width: size.width,
+                height: size.height,
+                elevation: 50,
+                gradients: true,
+                autoCenter: true,
+                duration: 1000,
+                display: newDisplayMode,
+                when: {
+                    turned: function(event, page, view) {
+                        currentPage = page;
+                        updatePageInfo();
+                        preloadPages(currentPage);
+                    },
+                    turning: function(event, page, view) {
+                        preloadPages(page);
                     }
-                    
-                    generateTurnJsPages();
-                    flipbook.turn({
-                        width: size.width,
-                        height: size.height,
-                        elevation: 50,
-                        gradients: true,
-                        autoCenter: true,
-                        duration: 1000,
-                        display: newDisplayMode, // Use calculated display type
-                        when: {
-                            turned: function(event, page, view) {
-                                currentPage = page;
-                                updatePageInfo();
-                                preloadPages(currentPage);
-                            },
-                            turning: function(event, page, view) {
-                                preloadPages(page);
-                            }
-                        }
-                    });
-                    flipbook.turn("page", currentPage);
-                } else {
-                    // Only update size and display if the book is already initialized and the core display mode hasn't changed
-                    flipbook.turn("size", size.width, size.height);
-                    flipbook.turn("display", newDisplayMode);
-                    flipbook.turn("page", currentPage);
                 }
+            });
+            flipbook.turn("page", currentPageBeforeDestroy);
+            debug(`Turn.js recreated with new display mode: ${newDisplayMode}`);
+        } else {
+            // Just update size if display mode hasn't changed
+            flipbook.turn("size", size.width, size.height);
+            debug("Updated Turn.js size only.");
+        }
+    } catch (error) {
+        console.error("Error updating Turn.js:", error);
+        // Fallback: reinitialize completely
+        flipbook.empty();
+        generateTurnJsPages();
+        flipbook.turn({
+            width: size.width,
+            height: size.height,
+            elevation: 50,
+            gradients: true,
+            autoCenter: true,
+            duration: 1000,
+            display: newDisplayMode,
+            when: {
+                turned: function(event, page, view) {
+                    currentPage = page;
+                    updatePageInfo();
+                    preloadPages(currentPage);
+                },
+                turning: function(event, page, view) {
+                    preloadPages(page);
+                }
+            }
+        });
+        flipbook.turn("page", currentPage);
+    }
+}
 
                 currentDisplayMode = newDisplayMode; // Update the global display mode flag
 
