@@ -97,10 +97,6 @@
             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
             /* This will now be displayed on all screen sizes */
             display: block; 
-            /* Added for CLS improvement */
-            min-width: 50vw; 
-            min-height: 60vh; 
-            background-color: #f0f0f0; /* Optional: light background to show reserved space */
         }
 
         .page {
@@ -352,9 +348,9 @@
                 display: none;
             }
 
-            /* Zoom controls will be shown on mobile portrait, hidden on landscape */
+            /* Hide the entire zoom controls section */
             .zoom-controls {
-                display: none; /* Hidden by default, shown by media query below */
+                display: none;
             }
 
             /* Hide the page info display (e.g., "Page 1 of 32") */
@@ -414,13 +410,8 @@
                 display: flex; /* Ensure it's visible in portrait */
             }
             /* Re-apply existing mobile specific display rules for other elements */
-            .controls {
-                display: none;
-            }
-            /* Show zoom controls in portrait mode on mobile */
-            .zoom-controls {
-                display: flex; 
-            }
+            .controls,
+            .zoom-controls,
             .page-info {
                 display: none;
             }
@@ -536,14 +527,6 @@
             let swipeStartTime = 0;
             const SWIPE_THRESHOLD_X = 20; // Decreased for higher sensitivity
             const SWIPE_TIME_THRESHOLD = 500; // Max time for a swipe gesture
-
-            // Mobile-specific touch variables for zoom
-            let lastTouchDistance = -1;
-            let initialTouchX = 0;
-            let initialTouchY = 0;
-            let lastTapTime = 0;
-            const DOUBLE_TAP_THRESHOLD = 300; // milliseconds
-            const DOUBLE_TAP_ZOOM_LEVEL = 1.5;
 
 
             // Image loading management
@@ -706,6 +689,8 @@
                 const maxHeightFactor = 0.8;
 
                 let scale = 1;
+                // A more robust way to determine mobile view: consider aspect ratio or device type
+                // For simplicity, let's stick to max-width for now, but be aware of its limitations
                 const isCurrentMobile = (windowWidth <= 768); 
                 let displayMode = 'double';
 
@@ -750,28 +735,17 @@
 
                 // Check if display mode or overall dimensions have significantly changed
                 // This is crucial for re-rendering Turn.js correctly
-                const needsReInitialization = (
-                    !flipbook.data('turn-page-wrapper') || // Not initialized yet
-                    currentDisplayMode !== newDisplayMode || // Display mode changed (single/double)
-                    flipbook.width() !== size.width || // Width changed
-                    flipbook.height() !== size.height // Height changed
-                );
+                if (!flipbook.data('turn-page-wrapper') || 
+                    currentDisplayMode !== newDisplayMode ||
+                    flipbook.width() !== size.width || 
+                    flipbook.height() !== size.height) {
 
-                if (needsReInitialization) {
                     if (flipbook.data('turn-page-wrapper')) {
                         flipbook.turn('destroy');
+                        flipbook.empty(); // Clear previous pages
                     }
-                    flipbook.empty(); // Clear previous pages
                     
                     generateTurnJsPages();
-
-                    debug(`Turn.js Init - Width: ${size.width}, Height: ${size.height}, Display: ${newDisplayMode}, CurrentPage: ${currentPage}, Pages in DOM: ${flipbook.children('.page').length}`); // Added debug log
-                    if (size.width <= 0 || size.height <= 0) {
-                        console.error("Calculated size is invalid for Turn.js initialization:", size);
-                        // Potentially handle this error gracefully, maybe defer initialization
-                        return; 
-                    }
-
                     flipbook.turn({
                         width: size.width,
                         height: size.height,
@@ -780,7 +754,6 @@
                         autoCenter: true,
                         duration: 1000,
                         display: newDisplayMode, // Use calculated display type
-                        pages: TOTAL_PAGES, // <--- ADDED THIS LINE TO FIX "not a page for range"
                         when: {
                             turned: function(event, page, view) {
                                 currentPage = page;
@@ -811,7 +784,7 @@
                 // Re-bind pan handlers for zoomed mobile view (now for Turn.js)
                 // This section still applies to zoomed state regardless of 'mobile' flag, 
                 // as zoom controls are always available on desktop.
-                $(document).on('touchmove.pan', null, { passive: false }, function(e) { // Added { passive: false }
+                $(document).on('touchmove.pan', function(e) {
                     if (isPanning && currentZoom > 1 && e.originalEvent.touches.length === 1) {
                         panOffsetX = e.originalEvent.touches[0].clientX - panStartX;
                         panOffsetY = e.originalEvent.touches[0].clientY - panStartY;
@@ -897,13 +870,6 @@
                 $("#resetBtn").prop("disabled", currentZoom === 1 && panOffsetX === 0 && panOffsetY === 0);
             }
 
-            // Function to determine if currently on a mobile device (portrait)
-            function isMobilePortrait() {
-                const windowWidth = $(window).width();
-                const windowHeight = $(window).height();
-                return (windowWidth <= 768 && windowHeight > windowWidth);
-            }
-
             // Event handlers
             $("#prevBtn").click(function() {
                 $("#flipbook").turn("previous");
@@ -934,299 +900,169 @@
                 updateZoom();
             });
 
-            // Mobile specific touch logic (Pinch-to-Zoom and Double-Tap)
-            $("#flipbook").on('touchstart', null, { passive: false }, function(e) { // Added { passive: false }
-                if (isMobilePortrait()) {
-                    if (e.originalEvent.touches.length === 2) { // Pinch-to-zoom start
-                        lastTouchDistance = getDistance(e.originalEvent.touches[0], e.originalEvent.touches[1]);
-                        isPanning = false; // Disable pan if pinch starts
-                        e.preventDefault(); // Prevent default browser zoom
-                    } else if (e.originalEvent.touches.length === 1) {
-                        const now = Date.now();
-                        const timeDelta = now - lastTapTime;
-
-                        if (timeDelta < DOUBLE_TAP_THRESHOLD && timeDelta > 0) {
-                            // Double tap detected
-                            lastTapTime = 0; // Reset for next double tap
-                            e.preventDefault(); // Prevent default zoom/scroll on double tap
-                            toggleDoubleTapZoom();
-                        } else {
-                            lastTapTime = now;
-                            isPanning = currentZoom > 1; // Only pan if zoomed in
-                            if (isPanning) { // Prevent default only if we are handling pan
-                                panStartX = e.originalEvent.touches[0].clientX - panOffsetX;
-                                panStartY = e.originalEvent.touches[0].clientY - panOffsetY;
-                                e.preventDefault(); // Prevent scroll while panning
-                            }
-                            isPotentialSwipe = true; // For single finger swipe to turn page
-                            swipeStartX = e.originalEvent.touches[0].clientX;
-                            swipeStartTime = Date.now();
-                        }
-                    }
-                } else { // Desktop or Landscape mobile handling - Treat as desktop-like mouse events
-                    if (currentZoom > 1) {
-                        isPanning = true;
-                        panStartX = e.originalEvent.touches[0].clientX - panOffsetX;
-                        panStartY = e.originalEvent.touches[0].clientY - panOffsetY;
-                        e.preventDefault(); // Prevent default if custom panning
-                    } else {
-                        isPotentialSwipe = true;
-                        swipeStartX = e.originalEvent.touches[0].clientX;
-                        swipeStartTime = Date.now();
-                        // Do NOT prevent default here, let turn.js handle the drag for page turning
-                    }
-                }
-            }).on('touchmove', null, { passive: false }, function(e) { // Added { passive: false }
-                if (isMobilePortrait()) {
-                    if (e.originalEvent.touches.length === 2) { // Pinch-to-zoom
-                        const currentTouchDistance = getDistance(e.originalEvent.touches[0], e.originalEvent.touches[1]);
-                        if (lastTouchDistance > 0) {
-                            const zoomFactor = currentTouchDistance / lastTouchDistance;
-                            currentZoom = Math.max(1, Math.min(2, currentZoom * zoomFactor)); // Limit zoom between 1 and 2
-                            updateZoom();
-                            lastTouchDistance = currentTouchDistance;
-                        }
-                        e.preventDefault(); // Prevent default browser zoom/scroll
-                    } else if (e.originalEvent.touches.length === 1 && isPanning) { // Pan when zoomed in
-                        panOffsetX = e.originalEvent.touches[0].clientX - panStartX;
-                        panOffsetY = e.originalEvent.touches[0].clientY - panOffsetY;
-                        
-                        const size = calculateOptimalSize();
-                        const contentWidth = currentDisplayMode === 'double' ? size.width / 2 : size.width;
-                        const contentHeight = size.height;
-                        const maxPanX = (contentWidth * currentZoom - contentWidth) / 2;
-                        const maxPanY = (contentHeight * currentZoom - contentHeight) / 2;
-
-                        panOffsetX = Math.max(-maxPanX, Math.min(maxPanX, panOffsetX));
-                        panOffsetY = Math.max(-maxPanY, Math.min(maxPanY, panOffsetY));
-
-                        $("#flipbook").css("transform", `scale(${currentZoom}) translate(${panOffsetX}px, ${panOffsetY}px)`);
-                        e.preventDefault(); // Prevent page scrolling
-                    } else if (isPotentialSwipe && currentZoom === 1) { // Allow Turn.js to handle swipe
-                        // Do not prevent default here, let Turn.js handle its internal drag for page turning
-                    } else {
-                         // Default behavior for other touch scenarios if needed
-                    }
-                } else { // Desktop or Landscape mobile handling
-                    if (currentZoom > 1) {
-                        panOffsetX = e.originalEvent.touches[0].clientX - panStartX;
-                        panOffsetY = e.originalEvent.touches[0].clientY - panOffsetY;
-                        
-                        const size = calculateOptimalSize();
-                        const contentWidth = currentDisplayMode === 'double' ? size.width / 2 : size.width;
-                        const contentHeight = size.height;
-                        const maxPanX = (contentWidth * currentZoom - contentWidth) / 2;
-                        const maxPanY = (contentHeight * currentZoom - contentHeight) / 2;
-
-                        panOffsetX = Math.max(-maxPanX, Math.min(maxPanX, panOffsetX));
-                        panOffsetY = Math.max(-maxPanY, Math.min(maxPanY, panOffsetY));
-
-                        $("#flipbook").css("transform", `scale(${currentZoom}) translate(${panOffsetX}px, ${panOffsetY}px)`);
-                        e.preventDefault();
-                    } else if (isPotentialSwipe) {
-                        // Do NOT prevent default here, let Turn.js handle its internal drag for page turning
-                    }
-                }
+            // Mobile specific tap logic (using Turn.js internal swipe)
+            $("#flipbook").on('touchstart', function(e) {
+                 if (currentZoom > 1) {
+                    isPanning = true;
+                    panStartX = e.originalEvent.touches[0].clientX - panOffsetX;
+                    panStartY = e.originalEvent.touches[0].clientY - panOffsetY;
+                    // Allow Turn.js to handle default behavior for non-panning
+                 } else {
+                    // For non-zoomed state, record touch start for swipe detection
+                    isPotentialSwipe = true;
+                    swipeStartX = e.originalEvent.touches[0].clientX;
+                    swipeStartTime = Date.now();
+                 }
             }).on('touchend', function(e) {
-                if (isMobilePortrait()) {
-                    if (lastTouchDistance !== -1) { // End of pinch
-                        lastTouchDistance = -1;
-                    }
-                    if (isPanning) { // End of pan
-                        isPanning = false;
-                    }
-                    if (isPotentialSwipe && currentZoom === 1) { // Single finger lift for swipe
-                        isPotentialSwipe = false;
-                        const swipeEndX = e.originalEvent.changedTouches[0].clientX;
-                        const deltaX = swipeEndX - swipeStartX;
-                        const swipeDuration = Date.now() - swipeStartTime;
+                if (currentZoom > 1) {
+                    isPanning = false;
+                } else if (isPotentialSwipe) {
+                    isPotentialSwipe = false;
+                    const swipeEndX = e.originalEvent.changedTouches[0].clientX;
+                    const deltaX = swipeEndX - swipeStartX;
+                    const swipeDuration = Date.now() - swipeStartTime;
 
-                        if (swipeDuration < SWIPE_TIME_THRESHOLD && Math.abs(deltaX) > SWIPE_THRESHOLD_X) {
-                            if (deltaX < 0) {
-                                $("#flipbook").turn("next");
-                            } else {
-                                $("#flipbook").turn("previous");
-                            }
+                    // Apply swipe logic if conditions met
+                    if (swipeDuration < SWIPE_TIME_THRESHOLD && Math.abs(deltaX) > SWIPE_THRESHOLD_X) {
+                        if (deltaX < 0) {
+                            $("#flipbook").turn("next");
+                        } else {
+                            $("#flipbook").turn("previous");
                         }
                     }
-                } else { // Desktop or Landscape mobile handling
-                    if (lastTouchDistance !== -1) { // End of pinch
-                        lastTouchDistance = -1;
-                    }
-                    if (isPanning) { // End of pan
-                        isPanning = false;
-                    }
-                    if (isPotentialSwipe) {
-                        isPotentialSwipe = false;
-                        const swipeEndX = e.originalEvent.changedTouches[0].clientX;
-                        const deltaX = swipeEndX - swipeStartX;
-                        const swipeDuration = Date.now() - swipeStartTime;
-
-                        if (swipeDuration < SWIPE_TIME_THRESHOLD && Math.abs(deltaX) > SWIPE_THRESHOLD_X) {
-                            if (deltaX < 0) {
-                                $("#flipbook").turn("next");
-                            } else {
-                                $("#flipbook").turn("previous");
-                            }
-                        }
-                    }
+                }
+            }).on('touchmove', function(e) {
+                if (currentZoom > 1) {
+                    // Pan logic handled above in `touchmove.pan`
+                } else if (isPotentialSwipe) {
+                    // Prevent default touchmove to avoid scrolling the page
+                    // but allow Turn.js to handle its own drag animation
+                    e.preventDefault(); 
                 }
             });
-
-            function getDistance(t1, t2) {
-                return Math.sqrt(
-                    (t2.clientX - t1.clientX) * (t2.clientX - t1.clientX) +
-                    (t2.clientY - t1.clientY) * (t2.clientY - t1.clientY)
-                );
-            }
-
-            function toggleDoubleTapZoom() {
-                if (currentZoom === 1) {
-                    currentZoom = DOUBLE_TAP_ZOOM_LEVEL;
-                } else {
-                    currentZoom = 1;
-                }
-                updateZoom();
-            }
 
 
             // Mouse drag/swipe functionality for desktop (and now mobile if mouse used)
             $("#bookWrapper").on('mousedown', function(e) {
-                if (!isMobilePortrait()) { // Only apply for desktop or landscape mobile
-                    if (currentZoom > 1) {
-                        isPanning = true;
-                        panStartX = e.clientX - panOffsetX;
-                        panStartY = e.clientY - panOffsetY;
-                        $(this).css("cursor", "grabbing");
-                        e.preventDefault(); // Prevent default if custom panning
-                    } else {
-                        isPotentialSwipe = true;
-                        swipeStartX = e.clientX;
-                        swipeStartTime = Date.now();
-                        // DO NOT prevent default here, let turn.js handle the drag for page turning
-                    }
+                if (currentZoom > 1) {
+                    isPanning = true;
+                    panStartX = e.clientX - panOffsetX;
+                    panStartY = e.clientY - panOffsetY;
+                    $(this).css("cursor", "grabbing");
+                    e.preventDefault();
+                } else {
+                    isPotentialSwipe = true;
+                    swipeStartX = e.clientX;
+                    swipeStartTime = Date.now();
+                    e.preventDefault(); 
                 }
             }).on('mouseup', function(e) {
-                if (!isMobilePortrait()) { // Only apply for desktop or landscape mobile
-                    if (isPotentialSwipe) {
-                        isPotentialSwipe = false;
-                        const swipeEndX = e.clientX;
-                        const deltaX = swipeEndX - swipeStartX;
-                        const swipeDuration = Date.now() - swipeStartTime;
+                if (isPotentialSwipe) {
+                    isPotentialSwipe = false;
+                    const swipeEndX = e.clientX;
+                    const deltaX = swipeEndX - swipeStartX;
+                    const swipeDuration = Date.now() - swipeStartTime;
 
-                        if (swipeDuration < SWIPE_TIME_THRESHOLD && Math.abs(deltaX) > SWIPE_THRESHOLD_X) {
-                            if (deltaX < 0) {
-                                $("#flipbook").turn("next");
-                            } else {
-                                $("#flipbook").turn("previous");
-                            }
+                    if (swipeDuration < SWIPE_TIME_THRESHOLD && Math.abs(deltaX) > SWIPE_THRESHOLD_X) {
+                        if (deltaX < 0) {
+                            $("#flipbook").turn("next");
+                        } else {
+                            $("#flipbook").turn("previous");
                         }
                     }
                 }
             }).on('mouseleave', function(e) {
-                if (!isMobilePortrait()) { // Only apply for desktop or landscape mobile
-                    if (isPotentialSwipe) {
-                        isPotentialSwipe = false;
-                    }
+                if (isPotentialSwipe) {
+                    isPotentialSwipe = false;
                 }
             });
 
             // Desktop Pan handler
-            // $(document).on('touchmove.pan', ...) already handles touchmove globally
-            // This one is specifically for mousemove
             $(document).on('mousemove', function(e) {
-                if (!isMobilePortrait()) { // Only apply for desktop or landscape mobile
-                    if (isPanning && currentZoom > 1) {
-                        panOffsetX = e.clientX - panStartX;
-                        panOffsetY = e.clientY - panOffsetY;
+                if (isPanning && currentZoom > 1) {
+                    panOffsetX = e.clientX - panStartX;
+                    panOffsetY = e.clientY - panStartY;
 
-                        const size = calculateOptimalSize();
-                        const contentWidth = currentDisplayMode === 'double' ? size.width / 2 : size.width;
-                        const contentHeight = size.height;
-                        const maxPanX = (contentWidth * currentZoom - contentWidth) / 2;
-                        const maxPanY = (contentHeight * currentZoom - contentHeight) / 2;
+                    const size = calculateOptimalSize();
+                    const contentWidth = currentDisplayMode === 'double' ? size.width / 2 : size.width; 
+                    const contentHeight = size.height;
+                    const maxPanX = (contentWidth * currentZoom - contentWidth) / 2;
+                    const maxPanY = (contentHeight * currentZoom - contentHeight) / 2;
 
-                        panOffsetX = Math.max(-maxPanX, Math.min(maxPanX, panOffsetX));
-                        panOffsetY = Math.max(-maxPanY, Math.min(maxPanY, panOffsetY));
+                    panOffsetX = Math.max(-maxPanX, Math.min(maxPanX, panOffsetX));
+                    panOffsetY = Math.max(-maxPanY, Math.min(maxPanY, panOffsetY));
 
-                        $("#flipbook").css("transform", `scale(${currentZoom}) translate(${panOffsetX}px, ${panOffsetY}px)`);
-                    }
+                    $("#flipbook").css("transform", `scale(${currentZoom}) translate(${panOffsetX}px, ${panOffsetY}px)`);
                 }
             });
 
             $(document).on('mouseup', function(e) {
-                if (!isMobilePortrait()) { // Only apply for desktop or landscape mobile
-                    if (isPanning) {
-                        isPanning = false;
-                        $("#bookWrapper").css("cursor", currentZoom > 1 ? "grab" : "pointer");
-                    }
+                if (isPanning) {
+                    isPanning = false;
+                    $("#bookWrapper").css("cursor", currentZoom > 1 ? "grab" : "pointer");
                 }
             });
 
-            // Keyboard navigation (desktop only)
+            // Keyboard navigation
             $(document).keydown(function(e) {
-                if (!isMobilePortrait()) { // Only apply for desktop or landscape mobile
-                    if (e.keyCode === 37) { // Left arrow
-                        $("#flipbook").turn("previous");
-                    } else if (e.keyCode === 39) { // Right arrow
-                        $("#flipbook").turn("next");
-                    } else if (e.keyCode === 187 || e.keyCode === 107) { // Plus or Numpad Plus
-                        e.preventDefault();
-                        $("#zoomInBtn").click(); 
-                    } else if (e.keyCode === 189 || e.keyCode === 109) { // Minus or Numpad Minus
-                        e.preventDefault();
-                        $("#zoomOutBtn").click(); 
-                    } else if (e.keyCode === 68 && e.ctrlKey) { // Ctrl + D
-                        e.preventDefault();
-                        debugMode = !debugMode;
-                        debug("Debug mode " + (debugMode ? "enabled" : "disabled"));
-                    }
+                if (e.keyCode === 37) { // Left arrow
+                    $("#flipbook").turn("previous");
+                } else if (e.keyCode === 39) { // Right arrow
+                    $("#flipbook").turn("next");
+                } else if (e.keyCode === 187 || e.keyCode === 107) { // Plus or Numpad Plus
+                    e.preventDefault();
+                    $("#zoomInBtn").click(); 
+                } else if (e.keyCode === 189 || e.keyCode === 109) { // Minus or Numpad Minus
+                    e.preventDefault();
+                    $("#zoomOutBtn").click(); 
+                } else if (e.keyCode === 68 && e.ctrlKey) { // Ctrl + D
+                    e.preventDefault();
+                    debugMode = !debugMode;
+                    debug("Debug mode " + (debugMode ? "enabled" : "disabled"));
                 }
             });
 
-            // Mouse wheel zoom and scroll-to-flip (desktop only)
+            // Mouse wheel zoom and scroll-to-flip
             $("#bookWrapper").on('wheel', function(e) { // Now #bookWrapper handles all wheel events
-                if (!isMobilePortrait()) { // Only apply for desktop or landscape mobile
-                    if (currentZoom === 1) { // Not zoomed, scroll to flip
-                        if (!e.ctrlKey) {
-                            e.preventDefault();
-                            if (e.originalEvent.deltaY > 0) {
-                                $("#flipbook").turn("next");
-                            } else {
-                                $("#flipbook").turn("previous");
-                            }
-                        } else { // Ctrl key, zoom
-                            e.preventDefault();
-                            if (e.originalEvent.deltaY < 0) {
-                                $("#zoomInBtn").click();
-                            } else {
-                                $("#zoomOutBtn").click();
-                            }
-                        }
-                    } else if (currentZoom > 1 && !e.ctrlKey) { // Zoomed in, wheel without Ctrl pans
+                if (currentZoom === 1) { // Not zoomed, scroll to flip
+                    if (!e.ctrlKey) {
                         e.preventDefault();
-                        const sensitivity = 0.5;
-                        panOffsetX -= e.originalEvent.deltaX * sensitivity;
-                        panOffsetY -= e.originalEvent.deltaY * sensitivity;
-
-                        const size = calculateOptimalSize();
-                        const contentWidth = currentDisplayMode === 'double' ? size.width / 2 : size.width;
-                        const contentHeight = size.height;
-                        const maxPanX = (contentWidth * currentZoom - contentWidth) / 2;
-                        const maxPanY = (contentHeight * currentZoom - contentHeight) / 2;
-
-                        panOffsetX = Math.max(-maxPanX, Math.min(maxPanX, panOffsetX));
-                        panOffsetY = Math.max(-maxPanY, Math.min(maxPanY, panOffsetY));
-
-                        $("#flipbook").css("transform", `scale(${currentZoom}) translate(${panOffsetX}px, ${panOffsetY}px)`);
-
-                    } else if (e.ctrlKey) { // Ctrl+wheel zooms 
+                        if (e.originalEvent.deltaY > 0) {
+                            $("#flipbook").turn("next");
+                        } else {
+                            $("#flipbook").turn("previous");
+                        }
+                    } else { // Ctrl key, zoom
                         e.preventDefault();
                         if (e.originalEvent.deltaY < 0) {
                             $("#zoomInBtn").click();
                         } else {
                             $("#zoomOutBtn").click();
                         }
+                    }
+                } else if (currentZoom > 1 && !e.ctrlKey) { // Zoomed in, wheel without Ctrl pans
+                    e.preventDefault();
+                    const sensitivity = 0.5;
+                    panOffsetX -= e.originalEvent.deltaX * sensitivity;
+                    panOffsetY -= e.originalEvent.deltaY * sensitivity;
+
+                    const size = calculateOptimalSize();
+                    const contentWidth = currentDisplayMode === 'double' ? size.width / 2 : size.width;
+                    const contentHeight = size.height;
+                    const maxPanX = (contentWidth * currentZoom - contentWidth) / 2;
+                    const maxPanY = (contentHeight * currentZoom - contentHeight) / 2;
+
+                    panOffsetX = Math.max(-maxPanX, Math.min(maxPanX, panOffsetX));
+                    panOffsetY = Math.max(-maxPanY, Math.min(maxPanY, panOffsetY));
+
+                    $("#flipbook").css("transform", `scale(${currentZoom}) translate(${panOffsetX}px, ${panOffsetY}px)`);
+
+                } else if (e.ctrlKey) { // Ctrl+wheel zooms 
+                    e.preventDefault();
+                    if (e.originalEvent.deltaY < 0) {
+                        $("#zoomInBtn").click();
+                    } else {
+                        $("#zoomOutBtn").click();
                     }
                 }
             });
