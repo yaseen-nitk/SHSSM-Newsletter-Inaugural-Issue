@@ -97,6 +97,10 @@
             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
             /* This will now be displayed on all screen sizes */
             display: block; 
+            /* Added for CLS improvement */
+            min-width: 50vw; 
+            min-height: 60vh; 
+            background-color: #f0f0f0; /* Optional: light background to show reserved space */
         }
 
         .page {
@@ -761,7 +765,7 @@
                     
                     generateTurnJsPages();
 
-                    debug(`Turn.js Init - Width: ${size.width}, Height: ${size.height}, Display: ${newDisplayMode}, CurrentPage: ${currentPage}`); // Added debug log
+                    debug(`Turn.js Init - Width: ${size.width}, Height: ${size.height}, Display: ${newDisplayMode}, CurrentPage: ${currentPage}, Pages in DOM: ${flipbook.children('.page').length}`); // Added debug log
                     if (size.width <= 0 || size.height <= 0) {
                         console.error("Calculated size is invalid for Turn.js initialization:", size);
                         // Potentially handle this error gracefully, maybe defer initialization
@@ -776,6 +780,7 @@
                         autoCenter: true,
                         duration: 1000,
                         display: newDisplayMode, // Use calculated display type
+                        pages: TOTAL_PAGES, // <--- ADDED THIS LINE TO FIX "not a page for range"
                         when: {
                             turned: function(event, page, view) {
                                 currentPage = page;
@@ -806,7 +811,7 @@
                 // Re-bind pan handlers for zoomed mobile view (now for Turn.js)
                 // This section still applies to zoomed state regardless of 'mobile' flag, 
                 // as zoom controls are always available on desktop.
-                $(document).on('touchmove.pan', function(e) {
+                $(document).on('touchmove.pan', null, { passive: false }, function(e) { // Added { passive: false }
                     if (isPanning && currentZoom > 1 && e.originalEvent.touches.length === 1) {
                         panOffsetX = e.originalEvent.touches[0].clientX - panStartX;
                         panOffsetY = e.originalEvent.touches[0].clientY - panStartY;
@@ -930,7 +935,7 @@
             });
 
             // Mobile specific touch logic (Pinch-to-Zoom and Double-Tap)
-            $("#flipbook").on('touchstart', function(e) {
+            $("#flipbook").on('touchstart', null, { passive: false }, function(e) { // Added { passive: false }
                 if (isMobilePortrait()) {
                     if (e.originalEvent.touches.length === 2) { // Pinch-to-zoom start
                         lastTouchDistance = getDistance(e.originalEvent.touches[0], e.originalEvent.touches[1]);
@@ -948,25 +953,30 @@
                         } else {
                             lastTapTime = now;
                             isPanning = currentZoom > 1; // Only pan if zoomed in
-                            panStartX = e.originalEvent.touches[0].clientX - panOffsetX;
-                            panStartY = e.originalEvent.touches[0].clientY - panOffsetY;
+                            if (isPanning) { // Prevent default only if we are handling pan
+                                panStartX = e.originalEvent.touches[0].clientX - panOffsetX;
+                                panStartY = e.originalEvent.touches[0].clientY - panOffsetY;
+                                e.preventDefault(); // Prevent scroll while panning
+                            }
                             isPotentialSwipe = true; // For single finger swipe to turn page
                             swipeStartX = e.originalEvent.touches[0].clientX;
                             swipeStartTime = Date.now();
                         }
                     }
-                } else { // Desktop or Landscape mobile handling
+                } else { // Desktop or Landscape mobile handling - Treat as desktop-like mouse events
                     if (currentZoom > 1) {
                         isPanning = true;
                         panStartX = e.originalEvent.touches[0].clientX - panOffsetX;
                         panStartY = e.originalEvent.touches[0].clientY - panOffsetY;
+                        e.preventDefault(); // Prevent default if custom panning
                     } else {
                         isPotentialSwipe = true;
                         swipeStartX = e.originalEvent.touches[0].clientX;
                         swipeStartTime = Date.now();
+                        // Do NOT prevent default here, let turn.js handle the drag for page turning
                     }
                 }
-            }).on('touchmove', function(e) {
+            }).on('touchmove', null, { passive: false }, function(e) { // Added { passive: false }
                 if (isMobilePortrait()) {
                     if (e.originalEvent.touches.length === 2) { // Pinch-to-zoom
                         const currentTouchDistance = getDistance(e.originalEvent.touches[0], e.originalEvent.touches[1]);
@@ -979,7 +989,7 @@
                         e.preventDefault(); // Prevent default browser zoom/scroll
                     } else if (e.originalEvent.touches.length === 1 && isPanning) { // Pan when zoomed in
                         panOffsetX = e.originalEvent.touches[0].clientX - panStartX;
-                        panOffsetY = e.originalEvent.touches[0].clientY - panStartY;
+                        panOffsetY = e.originalEvent.touches[0].clientY - panOffsetY;
                         
                         const size = calculateOptimalSize();
                         const contentWidth = currentDisplayMode === 'double' ? size.width / 2 : size.width;
@@ -1000,7 +1010,7 @@
                 } else { // Desktop or Landscape mobile handling
                     if (currentZoom > 1) {
                         panOffsetX = e.originalEvent.touches[0].clientX - panStartX;
-                        panOffsetY = e.originalEvent.touches[0].clientY - panStartY;
+                        panOffsetY = e.originalEvent.touches[0].clientY - panOffsetY;
                         
                         const size = calculateOptimalSize();
                         const contentWidth = currentDisplayMode === 'double' ? size.width / 2 : size.width;
@@ -1014,7 +1024,7 @@
                         $("#flipbook").css("transform", `scale(${currentZoom}) translate(${panOffsetX}px, ${panOffsetY}px)`);
                         e.preventDefault();
                     } else if (isPotentialSwipe) {
-                        e.preventDefault(); 
+                        // Do NOT prevent default here, let Turn.js handle its internal drag for page turning
                     }
                 }
             }).on('touchend', function(e) {
@@ -1040,9 +1050,13 @@
                         }
                     }
                 } else { // Desktop or Landscape mobile handling
-                    if (currentZoom > 1) {
+                    if (lastTouchDistance !== -1) { // End of pinch
+                        lastTouchDistance = -1;
+                    }
+                    if (isPanning) { // End of pan
                         isPanning = false;
-                    } else if (isPotentialSwipe) {
+                    }
+                    if (isPotentialSwipe) {
                         isPotentialSwipe = false;
                         const swipeEndX = e.originalEvent.changedTouches[0].clientX;
                         const deltaX = swipeEndX - swipeStartX;
@@ -1084,12 +1098,12 @@
                         panStartX = e.clientX - panOffsetX;
                         panStartY = e.clientY - panOffsetY;
                         $(this).css("cursor", "grabbing");
-                        e.preventDefault();
+                        e.preventDefault(); // Prevent default if custom panning
                     } else {
                         isPotentialSwipe = true;
                         swipeStartX = e.clientX;
                         swipeStartTime = Date.now();
-                        e.preventDefault(); 
+                        // DO NOT prevent default here, let turn.js handle the drag for page turning
                     }
                 }
             }).on('mouseup', function(e) {
@@ -1118,14 +1132,16 @@
             });
 
             // Desktop Pan handler
+            // $(document).on('touchmove.pan', ...) already handles touchmove globally
+            // This one is specifically for mousemove
             $(document).on('mousemove', function(e) {
                 if (!isMobilePortrait()) { // Only apply for desktop or landscape mobile
                     if (isPanning && currentZoom > 1) {
                         panOffsetX = e.clientX - panStartX;
-                        panOffsetY = e.clientY - panStartY;
+                        panOffsetY = e.clientY - panOffsetY;
 
                         const size = calculateOptimalSize();
-                        const contentWidth = currentDisplayMode === 'double' ? size.width / 2 : size.width; 
+                        const contentWidth = currentDisplayMode === 'double' ? size.width / 2 : size.width;
                         const contentHeight = size.height;
                         const maxPanX = (contentWidth * currentZoom - contentWidth) / 2;
                         const maxPanY = (contentHeight * currentZoom - contentHeight) / 2;
