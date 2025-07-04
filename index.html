@@ -482,9 +482,9 @@
                 }
             }
             
-            // Add mobile swipe support
+            // Add mobile swipe support with pinch-to-zoom
             function addMobileSwipeSupport() {
-                console.log('Adding mobile swipe support');
+                console.log('Adding mobile swipe support with pinch-to-zoom');
                 isMobileDevice = true;
                 
                 // Remove desktop event listeners
@@ -492,33 +492,116 @@
                 $(document).off('mousemove.customDrag keydown.flipbook');
                 $('#bookWrapper').off('wheel.flipbook');
                 
+                // Variables for pinch-to-zoom
+                let initialDistance = 0;
+                let initialZoom = 1;
+                let isZooming = false;
+                let touchStartX = 0;
+                let touchStartY = 0;
+                let touchStartOffsetX = 0;
+                let touchStartOffsetY = 0;
+                let isTouchPanning = false;
+                let touchMoved = false;
+                
                 // Add mobile touch events
                 $('#bookWrapper').off('touchstart.customSwipe touchend.customSwipe touchmove.customSwipe');
 
                 $('#bookWrapper').on('touchstart.customSwipe', function(e) {
-                    const touch = e.originalEvent.touches[0] || e.originalEvent.changedTouches[0];
-                    startX = touch.pageX;
-                    e.preventDefault();
-                });
-                
-                $('#bookWrapper').on('touchend.customSwipe', function(e) {
-                    const touch = e.originalEvent.touches[0] || e.originalEvent.changedTouches[0];
-                    endX = touch.pageX;
+                    const touches = e.originalEvent.touches;
+                    touchMoved = false;
                     
-                    const deltaX = endX - startX;
-                    const minSwipeDistance = 50;
-                    
-                    if (Math.abs(deltaX) > minSwipeDistance) {
-                        if (deltaX > 0) {
-                            $('#flipbook').turn('previous');
-                        } else {
-                            $('#flipbook').turn('next');
+                    if (touches.length === 2) {
+                        // Two finger touch - prepare for pinch zoom
+                        isZooming = true;
+                        const touch1 = touches[0];
+                        const touch2 = touches[1];
+                        initialDistance = Math.sqrt(
+                            Math.pow(touch2.pageX - touch1.pageX, 2) + 
+                            Math.pow(touch2.pageY - touch1.pageY, 2)
+                        );
+                        initialZoom = currentZoom;
+                        e.preventDefault();
+                    } else if (touches.length === 1) {
+                        // Single finger touch
+                        const touch = touches[0];
+                        startX = touch.pageX;
+                        
+                        if (currentZoom > 1) {
+                            // Panning when zoomed in
+                            isTouchPanning = true;
+                            touchStartX = touch.pageX;
+                            touchStartY = touch.pageY;
+                            touchStartOffsetX = panOffsetX;
+                            touchStartOffsetY = panOffsetY;
                         }
+                        e.preventDefault();
                     }
-                    e.preventDefault();
                 });
                 
                 $('#bookWrapper').on('touchmove.customSwipe', function(e) {
+                    const touches = e.originalEvent.touches;
+                    touchMoved = true;
+                    
+                    if (touches.length === 2 && isZooming) {
+                        // Pinch zoom gesture
+                        const touch1 = touches[0];
+                        const touch2 = touches[1];
+                        const currentDistance = Math.sqrt(
+                            Math.pow(touch2.pageX - touch1.pageX, 2) + 
+                            Math.pow(touch2.pageY - touch1.pageY, 2)
+                        );
+                        
+                        if (initialDistance > 0) {
+                            const scale = currentDistance / initialDistance;
+                            currentZoom = Math.max(1, Math.min(3, initialZoom * scale));
+                            updateZoom();
+                        }
+                        e.preventDefault();
+                    } else if (touches.length === 1 && isTouchPanning && currentZoom > 1) {
+                        // Panning when zoomed in
+                        const touch = touches[0];
+                        const deltaX = touch.pageX - touchStartX;
+                        const deltaY = touch.pageY - touchStartY;
+                        
+                        panOffsetX = touchStartOffsetX + (deltaX / currentZoom) * 1.5;
+                        panOffsetY = touchStartOffsetY + (deltaY / currentZoom) * 1.5;
+                        updateZoom();
+                        e.preventDefault();
+                    }
+                });
+                
+                $('#bookWrapper').on('touchend.customSwipe', function(e) {
+                    const touches = e.originalEvent.touches;
+                    
+                    if (touches.length === 0) {
+                        // All fingers lifted
+                        if (isZooming) {
+                            isZooming = false;
+                            initialDistance = 0;
+                        } else if (isTouchPanning) {
+                            isTouchPanning = false;
+                        } else if (!touchMoved) {
+                            // Simple tap without movement - could be used for other interactions
+                            // Currently no action on tap
+                        } else {
+                            // Swipe gesture for page turning (only when not zoomed)
+                            if (currentZoom === 1) {
+                                const touch = e.originalEvent.changedTouches[0];
+                                endX = touch.pageX;
+                                
+                                const deltaX = endX - startX;
+                                const minSwipeDistance = 50;
+                                
+                                if (Math.abs(deltaX) > minSwipeDistance) {
+                                    if (deltaX > 0) {
+                                        $('#flipbook').turn('previous');
+                                    } else {
+                                        $('#flipbook').turn('next');
+                                    }
+                                }
+                            }
+                        }
+                    }
                     e.preventDefault();
                 });
             }
