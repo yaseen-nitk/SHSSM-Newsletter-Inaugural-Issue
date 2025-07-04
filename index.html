@@ -28,6 +28,7 @@
             display: flex;
             flex-direction: column;
             align-items: center;
+            justify-content: center;
             width: 100%;
             height: 100vh;
             padding: 20px;
@@ -234,10 +235,18 @@
             display: none !important;
         }
 
-        /* Mobile styles - Hide all controls */
+        /* Mobile styles - Hide all controls and ensure centering */
         @media (max-width: 1024px) {
             .flipbook-container {
                 padding: 10px;
+                justify-content: center;
+            }
+            
+            #bookWrapper {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                height: 100%;
             }
             
             .controls {
@@ -263,7 +272,7 @@
         </div>
         
         <div class="keyboard-hint" id="keyboardHint">
-            ← → Arrow keys to flip • Ctrl+Wheel to zoom • Drag to pan when zoomed • Drag to flip pages
+           Drag to flip pages • Ctrl + Wheel to zoom • Drag to pan when zoomed • ←  → Arrow keys to flip
         </div>
 
         <div class="zoom-controls" id="zoomControls">
