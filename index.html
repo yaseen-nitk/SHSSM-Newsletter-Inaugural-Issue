@@ -3,8 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SHSSM Newsletter Inaugural Issue</title>
-
+    <title>Enhanced Interactive Flipbook</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/turn.js/3/turn.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -13,252 +14,48 @@
         }
 
         body {
-            font-family: 'Arial', sans-serif;
-            background: #5c4033;
-            min-height: 100vh;
+            background-color: #5c4033;
+            font-family: Arial, sans-serif;
+            overflow: hidden;
             display: flex;
-            flex-direction: column;
             justify-content: center;
             align-items: center;
-            overflow: hidden; /* Prevent body scroll */
+            min-height: 100vh;
         }
 
         .flipbook-container {
             position: relative;
-            width: 100vw;
-            height: 100vh;
             display: flex;
             flex-direction: column;
-            justify-content: center;
             align-items: center;
+            width: 100%;
+            height: 100vh;
             padding: 20px;
         }
 
-        /* --- Custom Book View for Mobile --- */
-        /* This section is now largely vestigial, as Turn.js will handle mobile */
-        #custom-book-view {
-            position: relative;
-            display: none; /* Always hidden now */
-            justify-content: center;
-            align-items: center;
-            flex: 1;
+        .loading-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
             width: 100%;
             height: 100%;
-            overflow: hidden;
-            perspective: 1000px;
-            transform-origin: center center;
-            transition: transform 0.3s ease;
-            touch-action: pan-y;
-        }
-
-        .custom-page-wrapper {
-            position: absolute;
-            width: 100%;
-            height: 100%;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            overflow: hidden;
-            background: white;
-            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
-            border-radius: 4px;
-            transition: transform 0.5s ease-out;
-            transform-style: preserve-3d;
-            backface-visibility: hidden;
-            touch-action: none;
-        }
-
-        /* Initial positions for new/old pages for transitions (vestigial) */
-        .custom-page-wrapper.current {
-            transform: translateX(0%);
-            z-index: 10;
-        }
-        .custom-page-wrapper.moving-next {
-            transform: translateX(-100%);
-            z-index: 9;
-        }
-        .custom-page-wrapper.moving-prev {
-            transform: translateX(100%);
-            z-index: 9;
-        }
-        .custom-page-wrapper.coming-next {
-            transform: translateX(100%);
-            z-index: 9;
-        }
-        .custom-page-wrapper.coming-prev {
-            transform: translateX(-100%);
-            z-index: 9;
-        }
-
-        /* For desktop (turn.js) */
-        #flipbook {
-            margin: 0 auto;
-            position: relative;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-            /* This will now be displayed on all screen sizes */
-            display: block; 
-        }
-
-        .page {
-            background: white;
-            border: 1px solid #ddd;
+            background-color: #5c4033;
             display: flex;
             flex-direction: column;
             justify-content: center;
             align-items: center;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-            position: relative;
-            overflow: hidden;
-            cursor: pointer;
-        }
-
-        .page img {
-            max-width: 100%;
-            max-height: 100%;
-            object-fit: contain;
-            border-radius: 4px;
-            pointer-events: none;
-            transition: opacity 0.3s ease;
-            position: relative;
-            z-index: 6;
-            opacity: 0;
-        }
-
-        /* Custom page image styling (vestigial for custom-book-view) */
-        .custom-page-image {
-            max-width: 100%;
-            max-height: 100%;
-            object-fit: contain;
-            border-radius: 4px;
-            pointer-events: none;
-            display: block;
-            opacity: 0;
-            transition: opacity 0.3s ease;
-            position: relative;
-            z-index: 6;
-        }
-        
-        .page img.loaded,
-        .custom-page-image.loaded {
-            opacity: 1;
-        }
-
-        .controls {
-            position: fixed;
-            bottom: 30px;
-            left: 50%;
-            transform: translateX(-50%);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            gap: 20px;
             z-index: 1000;
-        }
-
-        .control-btn {
-            background: rgba(255, 255, 255, 0.2);
-            border: 1px solid rgba(255, 255, 255, 0.3);
             color: white;
-            padding: 12px 24px;
-            border-radius: 25px;
-            cursor: pointer;
-            font-size: 1em;
-            transition: all 0.3s ease;
-            backdrop-filter: blur(10px);
         }
 
-        .control-btn:hover {
-            background: rgba(255, 255, 255, 0.3);
-            transform: translateY(-2px);
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
-        }
-
-        .control-btn:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
-
-        .zoom-controls {
-            position: fixed;
-            top: 30px;
-            right: 30px;
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-            z-index: 1000;
-        }
-
-        .zoom-btn {
-            background: rgba(255, 255, 255, 0.2);
-            border: 1px solid rgba(255, 255, 255, 0.3);
-            color: white;
+        .loading-spinner {
             width: 50px;
             height: 50px;
-            border-radius: 50%;
-            cursor: pointer;
-            font-size: 1.5em;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            transition: all 0.3s ease;
-            backdrop-filter: blur(10px);
-        }
-
-        .zoom-btn:hover {
-            background: rgba(255, 255, 255, 0.3);
-            transform: scale(1.1);
-        }
-
-        .zoom-level {
-            background: rgba(255, 255, 255, 0.2);
-            border: 1px solid rgba(255, 255, 255, 0.3);
-            padding: 8px 12px;
-            border-radius: 15px;
-            font-size: 0.9em;
-            text-align: center;
-            backdrop-filter: blur(10px);
-            min-width: 60px;
-             color: white;
-        }
-
-        .page-info {
-            position: fixed;
-            top: 30px;
-            left: 30px;
-            background: rgba(255, 255, 255, 0.2);
-            border: 1px solid rgba(255, 255, 255, 0.3);
-            color: white;
-            padding: 12px 20px;
-            border-radius: 20px;
-            font-size: 1em;
-            backdrop-filter: blur(10px);
-            z-index: 1000;
-        }
-
-        /* Loading indicator for custom view */
-        .custom-page-wrapper .loading-indicator,
-        .page .loading-indicator {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 10px;
-            color: #666;
-            font-size: 0.9em;
-            pointer-events: none;
-            z-index: 7;
-        }
-
-        .spinner {
-            width: 40px;
-            height: 40px;
-            border: 3px solid #f3f3f3;
-            border-top: 3px solid #666;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-top: 3px solid white;
             border-radius: 50%;
             animation: spin 1s linear infinite;
+            margin-bottom: 20px;
         }
 
         @keyframes spin {
@@ -266,835 +63,710 @@
             100% { transform: rotate(360deg); }
         }
 
-        /* FIX: Pseudo-element to prevent white flash */
-        .page::before,
-        .custom-page-wrapper::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(135deg, #f5f5f5 0%, #e8e8e8 100%);
-            z-index: 5;
-            opacity: 0;
-            transition: opacity 0.2s ease-in-out;
-            pointer-events: none;
+        .loading-text {
+            font-size: 18px;
+            margin-bottom: 10px;
         }
 
-        /* FIX: Show pseudo-element when loading class is present */
-        .page.loading::before,
-        .custom-page-wrapper.loading::before {
-            opacity: 1;
+        .loading-progress {
+            font-size: 14px;
+            opacity: 0.8;
         }
 
-        /* Image placeholder for custom view */
-        .custom-page-wrapper .image-placeholder,
-        .page .image-placeholder {
+        #bookWrapper {
+            position: relative;
+            overflow: visible;
+            cursor: grab;
+            transition: transform 0.3s ease;
+        }
+
+        #bookWrapper.grabbing {
+            cursor: grabbing;
+        }
+
+        #flipbook {
+            margin: 0 auto;
+            background-color: #5c4033;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+            transform-origin: center center;
+            transition: transform 0.1s ease-out;
+            will-change: transform;
+        }
+
+        .page {
             width: 100%;
             height: 100%;
+            background-color: white;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+        }
+
+        .page img {
+            max-width: 100%;
+            max-height: 100%;
+            width: auto;
+            height: auto;
+            object-fit: contain;
+        }
+
+        .controls {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: none;
+            gap: 15px;
+            align-items: center;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 10px 20px;
+            border-radius: 25px;
+            color: white;
+            z-index: 100;
+        }
+
+        .control-btn {
+            background: #8b6f47;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background-color 0.3s;
+        }
+
+        .control-btn:hover {
+            background: #a0845a;
+        }
+
+        .control-btn:disabled {
+            background: #4a4a4a;
+            cursor: not-allowed;
+        }
+
+        .page-info {
+            color: white;
+            font-size: 14px;
+            margin: 0 10px;
+        }
+
+        .zoom-controls {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            display: none;
+            flex-direction: column;
+            gap: 10px;
+            z-index: 100;
+        }
+
+        .zoom-btn {
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            border: none;
+            padding: 12px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 16px;
+            width: 45px;
+            height: 45px;
             display: flex;
             align-items: center;
             justify-content: center;
-            color: #999;
-            font-size: 0.9em;
-            position: absolute;
-            top: 0;
-            left: 0;
+            transition: background-color 0.3s;
         }
 
-        /* Progress bar */
-        .progress-container {
+        .zoom-btn:hover {
+            background: rgba(0, 0, 0, 0.9);
+        }
+
+        .zoom-btn:disabled {
+            background: rgba(0, 0, 0, 0.4);
+            cursor: not-allowed;
+        }
+
+        .zoom-info {
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            text-align: center;
+            min-width: 60px;
+        }
+
+        .error-message {
+            color: #ff6b6b;
+            text-align: center;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            margin: 20px;
+        }
+
+        .keyboard-hint {
             position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 3px;
-            background: rgba(255, 255, 255, 0.2);
-            z-index: 1001;
-        }
-
-        .progress-bar {
-            height: 100%;
-            background: linear-gradient(90deg, #4CAF50, #45a049);
-            width: 0%;
-            transition: width 0.3s ease;
-        }
-
-        .progress-container.hidden {
+            top: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 10px 15px;
+            border-radius: 10px;
+            font-size: 12px;
+            z-index: 100;
             display: none;
         }
 
-        /* Swipe Hint for Mobile */
-        .swipe-hint {
-            position: fixed;
-            bottom: 10px; /* Adjusted to be lower */
-            left: 50%;
-            transform: translateX(-50%);
-            background: rgba(0, 0, 0, 0.5); /* Semi-transparent background */
-            color: white;
-            padding: 8px 15px;
-            border-radius: 20px;
-            font-size: 0.9em;
-            z-index: 1000;
-            white-space: nowrap;
-            display: none; /* Hidden by default, shown by media query */
+        /* Hide translucent pages on first and last pages */
+        .turn-page-wrapper .turn-page.turn-page-1 .turn-page.turn-page-0 {
+            display: none !important;
+        }
+        
+        /* Hide shadow/translucent pages that shouldn't be visible */
+        .turn-page[style*="opacity: 0."] {
+            display: none !important;
+        }
+        
+        /* More specific targeting for ghost pages */
+        .turn-page-wrapper .turn-page:not(.turn-page-1):not(.turn-page-32)[style*="opacity"] {
+            display: none !important;
         }
 
-        /* Mobile specific styles */
-        @media (max-width: 768px) {
-            /* Hide the entire controls section (prev/next buttons) */
+        /* Mobile styles - Hide all controls */
+        @media (max-width: 1024px) {
+            .flipbook-container {
+                padding: 10px;
+            }
+            
             .controls {
-                display: none;
+                display: none !important;
             }
-
-            /* Hide the entire zoom controls section */
+            
             .zoom-controls {
-                display: none;
-            }
-
-            /* Hide the page info display (e.g., "Page 1 of 32") */
-            .page-info {
-                display: none;
-            }
-
-            /* Turn.js specific elements are now always displayed */
-            #flipbook {
-                display: block; 
-            }
-
-            /* Hide custom book view on mobile */
-            #custom-book-view {
-                display: none; 
-            }
-
-            /* Hide swipe hint on mobile */
-            .swipe-hint {
-                display: none; 
-            }
-        }
-
-        /* NEW CSS FOR LANDSCAPE MODE ON MOBILE */
-        @media only screen and (max-width: 768px) and (orientation: landscape) {
-            .flipbook-container,
-            .controls,
-            .zoom-controls,
-            .page-info,
-            .swipe-hint,
-            #flipbook,
-            #custom-book-view {
                 display: none !important;
             }
 
-            body::before {
-                content: "Please rotate your device to portrait mode.";
-                position: fixed;
-                top: 0;
-                left: 0;
-                width: 100%;
-                height: 100%;
-                background-color: #333;
-                color: white;
-                display: flex;
-                justify-content: center;
-                align-items: center;
-                font-size: 1.2em;
-                text-align: center;
-                z-index: 9999;
+            .keyboard-hint {
+                display: none !important;
             }
-        }
-
-        /* Ensure flipbook is shown in portrait on mobile */
-        @media only screen and (max-width: 768px) and (orientation: portrait) {
-            .flipbook-container {
-                display: flex; /* Ensure it's visible in portrait */
-            }
-            /* Re-apply existing mobile specific display rules for other elements */
-            .controls,
-            .zoom-controls,
-            .page-info {
-                display: none;
-            }
-            .swipe-hint {
-                display: none;
-            }
-            body::before { /* Hide the message when in portrait */
-                content: none;
-            }
-        }
-
-
-        /* Desktop specific styles */
-        @media (min-width: 769px) {
-            #custom-book-view {
-                display: none; /* Always hidden */
-            }
-
-            #flipbook {
-                display: block; /* Show Turn.js on desktop */
-            }
-
-            /* Show control buttons on desktop */
-            .controls {
-                display: flex; 
-            }
-            .zoom-controls {
-                display: flex; 
-            }
-            .page-info {
-                display: block; 
-            }
-
-            /* Hide swipe hint on desktop */
-            .swipe-hint {
-                display: none;
-            }
-        }
-
-        /* Turn.js specific styles (kept for desktop and now mobile) */
-        .turn-page {
-            background-color: white;
-            background-size: 100% 100%;
-        }
-
-        .hard {
-            background: #ccc !important;
-            color: #333;
         }
     </style>
 </head>
 <body>
-    <div class="progress-container" id="progressContainer">
-        <div class="progress-bar" id="progressBar"></div>
-    </div>
-
     <div class="flipbook-container">
-        <div class="page-info" id="pageInfo">Page 1 of 32</div>
-
-        <div class="zoom-controls">
-            <button class="zoom-btn" id="zoomInBtn" title="Zoom In">+</button>
-            <button class="zoom-btn" id="zoomOutBtn" title="Zoom Out">-</button>
-            <div class="zoom-level" id="zoomLevel">100%</div>
-            <button class="zoom-btn" id="resetBtn" title="Reset Zoom">⟲</button>
+        <div class="loading-screen" id="loadingScreen">
+            <div class="loading-spinner"></div>
+            <div class="loading-text">Loading Flipbook...</div>
+            <div class="loading-progress" id="loadingProgress">Loading...</div>
+        </div>
+        
+        <div class="keyboard-hint" id="keyboardHint">
+            ← → Arrow keys to flip • Ctrl+Wheel to zoom • Drag to pan when zoomed • Drag to flip pages
         </div>
 
-        <div class="book-wrapper" id="bookWrapper">
-            <div id="flipbook">
-            </div>
-
-            <div id="custom-book-view">
-            </div>
+        <div class="zoom-controls" id="zoomControls">
+            <button class="zoom-btn" id="zoomInBtn">+</button>
+            <div class="zoom-info" id="zoomInfo">100%</div>
+            <button class="zoom-btn" id="zoomOutBtn">-</button>
+            <button class="zoom-btn" id="resetZoomBtn">⌂</button>
         </div>
-
-        <div class="swipe-hint">
-            Swipe to turn the page
+        
+        <div id="bookWrapper">
+            <div id="flipbook"></div>
         </div>
-
-        <div class="controls">
-            <button class="control-btn" id="prevBtn">← Previous</button>
-            <button class="control-btn" id="nextBtn">Next →</button>
+        
+        <div class="controls" id="controls">
+            <button class="control-btn" id="prevBtn">Previous</button>
+            <span class="page-info" id="pageInfo">Page 1 of 32</span>
+            <button class="control-btn" id="nextBtn">Next</button>
         </div>
     </div>
-
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/turn.js/3/turn.min.js"></script>
 
     <script>
-        $(document).ready(function() {
-            // Configuration
-            const TOTAL_PAGES = 32;
-            const PRELOAD_RANGE = 4;
-            const IMAGE_BASE_PATH = 'images/';
-            const IMAGE_EXTENSION = '.webp';
-            const THROTTLE_LOAD_DELAY = 100;
+        // Global variables
+        let imagesLoaded = 0;
+        let totalImages = 32;
+        let flipbookInitialized = false;
+        let currentZoom = 1;
+        let panOffsetX = 0;
+        let panOffsetY = 0;
+        let isPanning = false;
+        let panStartX = 0;
+        let panStartY = 0;
+        let panStartOffsetX = 0;
+        let panStartOffsetY = 0;
+        let isMobileDevice = false;
+        let isPotentialSwipe = false;
+        let swipeStartX = 0;
+        let swipeStartTime = 0;
+        let contentWidth = 0;
+        let contentHeight = 0;
+        let ghostPageHideTimeout = null;
 
-            // Variables for responsive sizing and zoom
-            let currentZoom = 1;
-            let currentPage = 1; // Tracks the current actual page number (1 to TOTAL_PAGES)
-            let debugMode = false;
-            let currentDisplayMode = ''; // To store 'single' or 'double'
+        // Custom drag implementation constants
+        const SWIPE_THRESHOLD_X = 20; // pixels minimum drag distance
+        const SWIPE_TIME_THRESHOLD = 500; // milliseconds maximum drag duration
 
-            // Pan/drag variables
-            let isPanning = false;
-            let panStartX = 0;
-            let panStartY = 0;
-            let panOffsetX = 0;
-            let panOffsetY = 0;
+        // Update loading progress
+        function updateProgress(loaded, total) {
+            $('#loadingProgress').text(`${loaded} / ${total} pages loaded`);
+        }
 
-            // Desktop swipe variables (now also used for mobile with Turn.js)
-            let isPotentialSwipe = false;
-            let swipeStartX = 0;
-            let swipeStartTime = 0;
-            const SWIPE_THRESHOLD_X = 20; // Decreased for higher sensitivity
-            const SWIPE_TIME_THRESHOLD = 500; // Max time for a swipe gesture
+        window.imageLoaded = function() {
+            imagesLoaded++;
+            updateProgress(imagesLoaded, totalImages);
+        };
+        
+        window.imageError = function(img) {
+            console.warn('Failed to load image:', img.src);
+            img.style.display = 'none';
+            imagesLoaded++;
+            updateProgress(imagesLoaded, totalImages);
+        };
 
-
-            // Image loading management
-            let loadedImages = new Map(); // Stores loaded image elements
-            let loadingQueue = new Set();
-            let loadingPromises = [];
-
-            // Debug function
-            function debug(message) {
-                if (debugMode) {
-                    console.log(message);
-                }
+        // Zoom and pan functions
+        function updateZoom() {
+            const viewportWidth = $(window).width();
+            const viewportHeight = $(window).height();
+            
+            // Calculate maximum pan distances based on viewport and scaled content
+            const scaledWidth = contentWidth * currentZoom;
+            const scaledHeight = contentHeight * currentZoom;
+            
+            const maxPanX = Math.max(0, (scaledWidth - viewportWidth) / 2);
+            const maxPanY = Math.max(0, (scaledHeight - viewportHeight) / 2);
+            
+            // Constrain pan offsets to viewport boundaries
+            panOffsetX = Math.max(-maxPanX, Math.min(maxPanX, panOffsetX));
+            panOffsetY = Math.max(-maxPanY, Math.min(maxPanY, panOffsetY));
+            
+            // Use transform3d for hardware acceleration and smoother panning
+            $('#flipbook').css('transform', `scale(${currentZoom}) translate3d(${panOffsetX}px, ${panOffsetY}px, 0)`);
+            $('#zoomInfo').text(`${Math.round(currentZoom * 100)}%`);
+            
+            // Update button states
+            $('#zoomInBtn').prop('disabled', currentZoom >= 3);
+            $('#zoomOutBtn').prop('disabled', currentZoom <= 1);
+            $('#resetZoomBtn').prop('disabled', currentZoom === 1 && panOffsetX === 0 && panOffsetY === 0);
+            
+            // Update cursor based on zoom level
+            if (currentZoom > 1) {
+                $('#bookWrapper').css('cursor', 'grab');
+            } else {
+                $('#bookWrapper').css('cursor', 'default');
             }
+            
+            // Update body overflow to prevent scrollbars when zoomed
+            $('body').css('overflow', 'hidden');
+        }
 
-            // Update progress bar
-            function updateProgress() {
-                if (TOTAL_PAGES > 0) {
-                    const progress = (loadedImages.size / TOTAL_PAGES) * 100;
-                    $("#progressBar").css('width', progress + '%');
+        function resetZoom() {
+            currentZoom = 1;
+            panOffsetX = 0;
+            panOffsetY = 0;
+            updateZoom();
+        }
 
-                    if (loadedImages.size >= TOTAL_PAGES) {
-                        setTimeout(() => {
-                            $("#progressContainer").addClass('hidden');
-                        }, 500);
-                    } else {
-                        $("#progressContainer").removeClass('hidden');
-                    }
-                } else {
-                    $("#progressContainer").addClass('hidden');
-                }
+        function zoomIn() {
+            if (currentZoom < 3) {
+                currentZoom = Math.min(3, currentZoom + 0.2);
+                updateZoom();
             }
+        }
 
-            // Optimized image loading with caching
-            function loadImage(pageNumber, containerElement = null) {
-                if (pageNumber < 1 || pageNumber > TOTAL_PAGES) {
-                    return Promise.resolve();
-                }
-
-                const imageSrc = `${IMAGE_BASE_PATH}Page-${pageNumber.toString().padStart(2, '0')}${IMAGE_EXTENSION}`;
-
-                if (loadingQueue.has(pageNumber)) {
-                    debug(`Page ${pageNumber} already in loading queue.`);
-                    return Promise.resolve();
-                }
-                const existingImage = loadedImages.get(pageNumber);
-                if (existingImage && existingImage.src === imageSrc && existingImage.complete) {
-                    // Check if the image element exists and has the 'loaded' class
-                    const targetImageElement = $(`.page[data-page="${pageNumber}"] img`);
-                    if (targetImageElement.length && !targetImageElement.hasClass('loaded')) {
-                         targetImageElement.addClass('loaded');
-                         targetImageElement.parent().removeClass('loading');
-                    }
-                    debug(`Page ${pageNumber} already loaded.`);
-                    return Promise.resolve();
-                }
-
-                loadingQueue.add(pageNumber);
-                debug(`Attempting to load image for page ${pageNumber}: ${imageSrc}`);
-
-                let pageContainer;
-                // For Turn.js, containerElement will usually be null here as we are targeting pages directly
-                pageContainer = $(`.page[data-page="${pageNumber}"]`);
-                
-                if (!pageContainer.length) {
-                    debug(`Error: No page container found for page ${pageNumber}. Cannot attach image elements.`);
-                    loadingQueue.delete(pageNumber);
-                    return Promise.resolve();
-                }
-                
-                pageContainer.addClass('loading');
-
-                const imgElement = pageContainer.find('img');
-                const placeholder = pageContainer.find('.image-placeholder');
-                const spinner = pageContainer.find('.loading-indicator');
-
-                if (!imgElement.length) {
-                    debug(`Error: No image element found inside container for page ${pageNumber}.`);
-                    loadingQueue.delete(pageNumber);
-                    pageContainer.removeClass('loading');
-                    return Promise.resolve();
-                }
-
-                imgElement.removeClass('loaded');
-                spinner.show();
-
-
-                const promise = new Promise((resolve, reject) => {
-                    const newImg = new Image();
-                    newImg.onload = function() {
-                        imgElement.attr('src', imageSrc);
-                        imgElement.addClass('loaded');
-                        spinner.hide();
-
-                        loadedImages.set(pageNumber, newImg);
-                        loadingQueue.delete(pageNumber);
-                        updateProgress();
-                        debug(`✓ Image loaded successfully: Page ${pageNumber}`);
-                        pageContainer.removeClass('loading');
-                        resolve(pageNumber);
-                    };
-
-                    newImg.onerror = function() {
-                        placeholder.text('Failed to load');
-                        spinner.hide();
-                        loadingQueue.delete(pageNumber);
-                        debug(`✗ Image failed to load: Page ${pageNumber}`);
-                        pageContainer.removeClass('loading');
-                        reject(new Error(`Failed to load page ${pageNumber}`));
-                    };
-
-                    newImg.src = imageSrc;
-                });
-
-                loadingPromises.push(promise);
-                return promise;
+        function zoomOut() {
+            if (currentZoom > 1) {
+                currentZoom = Math.max(1, currentZoom - 0.2);
+                updateZoom();
             }
+        }
 
-            // Smart preloading based on current page
-            function preloadPages(centerPage) {
-                const pagesToLoad = new Set();
-
-                // Always preload the visible pages and a range around them
-                const currentView = $("#flipbook").turn("view");
-                if (currentView[0]) pagesToLoad.add(currentView[0]);
-                if (currentView[1] && currentView[1] !== currentView[0]) pagesToLoad.add(currentView[1]);
-                
-
-                for (let i = 1; i <= TOTAL_PAGES; i++) {
-                    if (i >= centerPage - PRELOAD_RANGE && i <= centerPage + PRELOAD_RANGE) {
-                        pagesToLoad.add(i);
-                    }
-                }
-
-                const sortedPagesToLoad = Array.from(pagesToLoad).sort((a, b) => {
-                    const distA = Math.abs(a - centerPage);
-                    const distB = Math.abs(b - centerPage);
-                    return distA - distB;
-                });
-
-                sortedPagesToLoad.forEach((pageNum, index) => {
-                    setTimeout(() => {
-                        loadImage(pageNum); // No conditional container anymore
-                    }, index * THROTTLE_LOAD_DELAY);
-                });
+        // Hide ghost/translucent pages on first and last pages
+        function hideGhostPages(currentPage) {
+            // Clear any existing timeout
+            if (ghostPageHideTimeout) {
+                clearTimeout(ghostPageHideTimeout);
             }
-
-            // Calculate optimal dimensions for full screen
-            function calculateOptimalSize() {
-                const pageWidthInches = 8.3;
-                const pageHeightInches = 11.7;
-                const dpi = 96;
-
-                const exactPageWidth = pageWidthInches * dpi;
-                const exactPageHeight = pageHeightInches * dpi;
-
-                const windowWidth = $(window).width();
-                const windowHeight = $(window).height();
-
-                const maxWidthFactor = 0.9;
-                const maxHeightFactor = 0.8;
-
-                let scale = 1;
-                // A more robust way to determine mobile view: consider aspect ratio or device type
-                // For simplicity, let's stick to max-width for now, but be aware of its limitations
-                const isCurrentMobile = (windowWidth <= 768); 
-                let displayMode = 'double';
-
-                if (windowWidth <= 768 || windowHeight > windowWidth) { // Portrait or small width device
-                    displayMode = 'single';
-                } else { // Landscape on larger screens / tablets
-                    displayMode = 'double';
-                }
-
-
-                if (displayMode === 'single') {
-                    if (exactPageWidth > windowWidth * maxWidthFactor) {
-                        scale = (windowWidth * maxWidthFactor) / exactPageWidth;
-                    }
-                    if (exactPageHeight * scale > windowHeight * maxHeightFactor) {
-                        scale = (windowHeight * maxHeightFactor) / exactPageHeight;
-                    }
-                } else { // Double page display
-                    if (exactPageWidth * 2 > windowWidth * maxWidthFactor) {
-                        scale = (windowWidth * maxWidthFactor) / (exactPageWidth * 2);
-                    }
-                    if (exactPageHeight * scale > windowHeight * maxHeightFactor) {
-                        scale = (windowHeight * maxHeightFactor) / exactPageHeight;
-                    }
-                }
-                
-                return {
-                    width: Math.floor(exactPageWidth * (displayMode === 'double' ? 2 : 1) * scale),
-                    height: Math.floor(exactPageHeight * scale),
-                    display: displayMode
-                };
-            }
-
-            // Initialize the book view (now always Turn.js)
-            function initializeBookView() {
-                const size = calculateOptimalSize();
-                const newDisplayMode = size.display;
-
-                $(document).off('.pan'); // Unbind old pan handlers
-
-                const flipbook = $("#flipbook");
-
-                // Check if display mode or overall dimensions have significantly changed
-                // This is crucial for re-rendering Turn.js correctly
-                if (!flipbook.data('turn-page-wrapper') || 
-                    currentDisplayMode !== newDisplayMode ||
-                    flipbook.width() !== size.width || 
-                    flipbook.height() !== size.height) {
-
-                    if (flipbook.data('turn-page-wrapper')) {
-                        flipbook.turn('destroy');
-                        flipbook.empty(); // Clear previous pages
-                    }
-                    
-                    generateTurnJsPages();
-                    flipbook.turn({
-                        width: size.width,
-                        height: size.height,
-                        elevation: 50,
-                        gradients: true,
-                        autoCenter: true,
-                        duration: 1000,
-                        display: newDisplayMode, // Use calculated display type
-                        when: {
-                            turned: function(event, page, view) {
-                                currentPage = page;
-                                updatePageInfo();
-                                preloadPages(currentPage);
-                            },
-                            turning: function(event, page, view) {
-                                preloadPages(page);
+            
+            // Delay the ghost page hiding to ensure Turn.js has finished rendering
+            ghostPageHideTimeout = setTimeout(function() {
+                if (currentPage === 1 || currentPage === totalImages) {
+                    // Find and hide translucent pages that shouldn't be visible
+                    $('.turn-page').each(function() {
+                        const $page = $(this);
+                        const style = $page.attr('style') || '';
+                        
+                        // Check for opacity in the style attribute
+                        const opacityMatch = style.match(/opacity:\s*([0-9.]+)/);
+                        if (opacityMatch) {
+                            const opacity = parseFloat(opacityMatch[1]);
+                            // Hide pages with very low opacity (ghost pages)
+                            if (opacity < 0.5) {
+                                $page.css('display', 'none');
+                            }
+                        }
+                        
+                        // Also check for transform values that indicate a ghost page
+                        if (style.includes('transform') && style.includes('opacity')) {
+                            const transformMatch = style.match(/transform:\s*[^;]+/);
+                            if (transformMatch && opacity < 0.5) {
+                                $page.css('display', 'none');
                             }
                         }
                     });
-                    flipbook.turn("page", currentPage);
-                } else {
-                    // Only update size and display if the book is already initialized and the core display mode hasn't changed
-                    flipbook.turn("size", size.width, size.height);
-                    flipbook.turn("display", newDisplayMode);
-                    flipbook.turn("page", currentPage);
                 }
+            }, 100);
+        }
 
-                currentDisplayMode = newDisplayMode; // Update the global display mode flag
+        $(document).ready(function() {
+            console.log('Document ready');
+            
+            // Check if required libraries are loaded
+            if (typeof $ === 'undefined') {
+                document.getElementById('loadingScreen').innerHTML = 
+                    '<div class="error-message">jQuery failed to load. Please check your internet connection.</div>';
+                return;
+            }
+            
+            if (typeof $.fn.turn === 'undefined') {
+                $('#loadingScreen').html('<div class="error-message">Turn.js failed to load. Please check your internet connection.</div>');
+                return;
+            }
+            
+            console.log('Libraries loaded successfully');
+            
+            let startX = 0;
+            let endX = 0;
+            
+            // Calculate dimensions for A4 aspect ratio
+            function getDimensions() {
+                const windowWidth = $(window).width();
+                const windowHeight = $(window).height();
+                const isMobile = windowWidth <= 1024;
+                const isPortrait = windowHeight > windowWidth;
+                
+                let width, height;
+                const a4Ratio = 297 / 210;
+                
+                if (isMobile && isPortrait) {
+                    width = Math.min(windowWidth - 40, 400);
+                    height = width * a4Ratio;
+                    
+                    if (height > windowHeight - 100) {
+                        height = windowHeight - 100;
+                        width = height / a4Ratio;
+                    }
+                    
+                    return { width: width, height: height, display: 'single' };
+                } else {
+                    width = Math.min(windowWidth - 40, 800);
+                    height = (width / 2) * a4Ratio;
+                    
+                    if (height > windowHeight - 100) {
+                        height = windowHeight - 100;
+                        width = (height / a4Ratio) * 2;
+                    }
+                    
+                    return { width: width, height: height, display: 'double' };
+                }
+            }
+            
+            // Add mobile swipe support
+            function addMobileSwipeSupport() {
+                console.log('Adding mobile swipe support');
+                isMobileDevice = true;
+                
+                // Remove desktop event listeners
+                $('#bookWrapper').off('mousedown.customDrag mousemove.customDrag mouseup.customDrag mouseleave.customDrag');
+                $(document).off('mousemove.customDrag keydown.flipbook');
+                $('#bookWrapper').off('wheel.flipbook');
+                
+                // Add mobile touch events
+                $('#bookWrapper').off('touchstart.customSwipe touchend.customSwipe touchmove.customSwipe');
 
-                // Adjust page width for single/double display
-                $(".page").css({
-                    width: currentDisplayMode === 'double' ? size.width / 2 : size.width,
-                    height: size.height
+                $('#bookWrapper').on('touchstart.customSwipe', function(e) {
+                    const touch = e.originalEvent.touches[0] || e.originalEvent.changedTouches[0];
+                    startX = touch.pageX;
+                    e.preventDefault();
                 });
                 
-                // Re-bind pan handlers for zoomed mobile view (now for Turn.js)
-                // This section still applies to zoomed state regardless of 'mobile' flag, 
-                // as zoom controls are always available on desktop.
-                $(document).on('touchmove.pan', function(e) {
-                    if (isPanning && currentZoom > 1 && e.originalEvent.touches.length === 1) {
-                        panOffsetX = e.originalEvent.touches[0].clientX - panStartX;
-                        panOffsetY = e.originalEvent.touches[0].clientY - panStartY;
-                        
-                        const contentWidth = currentDisplayMode === 'double' ? size.width / 2 : size.width;
-                        const contentHeight = size.height;
-                        const maxPanX = (contentWidth * currentZoom - contentWidth) / 2;
-                        const maxPanY = (contentHeight * currentZoom - contentHeight) / 2;
-
-                        panOffsetX = Math.max(-maxPanX, Math.min(maxPanX, panOffsetX));
-                        panOffsetY = Math.max(-maxPanY, Math.min(maxPanY, panOffsetY));
-
-                        $("#flipbook").css("transform", `scale(${currentZoom}) translate(${panOffsetX}px, ${panOffsetY}px)`);
-                        e.preventDefault();
+                $('#bookWrapper').on('touchend.customSwipe', function(e) {
+                    const touch = e.originalEvent.touches[0] || e.originalEvent.changedTouches[0];
+                    endX = touch.pageX;
+                    
+                    const deltaX = endX - startX;
+                    const minSwipeDistance = 50;
+                    
+                    if (Math.abs(deltaX) > minSwipeDistance) {
+                        if (deltaX > 0) {
+                            $('#flipbook').turn('previous');
+                        } else {
+                            $('#flipbook').turn('next');
+                        }
                     }
-                }).on('touchend.pan', function() {
-                    if (isPanning) {
-                        isPanning = false;
+                    e.preventDefault();
+                });
+                
+                $('#bookWrapper').on('touchmove.customSwipe', function(e) {
+                    e.preventDefault();
+                });
+            }
+
+            // Add desktop interactions with enhanced custom drag
+            function addDesktopInteractions() {
+                console.log('Adding desktop interactions');
+                
+                // Remove mobile touch events
+                $('#bookWrapper').off('touchstart.customSwipe touchend.customSwipe touchmove.customSwipe');
+                
+                // Keyboard navigation
+                $(document).off('keydown.flipbook').on('keydown.flipbook', function(e) {
+                    if (e.keyCode === 37) { // Left arrow
+                        e.preventDefault();
+                        $('#flipbook').turn('previous');
+                    } else if (e.keyCode === 39) { // Right arrow
+                        e.preventDefault();
+                        $('#flipbook').turn('next');
                     }
                 });
-
-
-                updatePageInfo();
-                updateZoom(); // Update zoom states based on current zoom and view
-                preloadPages(currentPage);
-            }
-
-            function generateTurnJsPages() {
-                const flipbook = $("#flipbook");
-                // Ensure flipbook is empty before adding pages, especially if re-generating
-                flipbook.empty(); 
-
-                for (let i = 1; i <= TOTAL_PAGES; i++) {
-                    const pageTitle = i === 1 ? 'Cover Page' :
-                                    i === TOTAL_PAGES ? 'Back Cover' :
-                                    `Page ${i}`;
-
-                    const pageHTML = `
-                        <div class="page" data-page="${i}">
-                            <div class="image-placeholder">
-                                Page ${i}
-                            </div>
-                            <div class="loading-indicator">
-                                <div class="spinner"></div>
-                                <div>Loading...</div>
-                            </div>
-                            <img data-src="${IMAGE_BASE_PATH}Page-${i.toString().padStart(2, '0')}${IMAGE_EXTENSION}"
-                                 alt="${pageTitle}">
-                        </div>
-                    `;
-                    flipbook.append(pageHTML);
-                }
-            }
-
-            // Update page info display
-            function updatePageInfo() {
-                $("#pageInfo").text(`Page ${currentPage} of ${TOTAL_PAGES}`);
-                $("#prevBtn").prop("disabled", currentPage === 1);
-                $("#nextBtn").prop("disabled", currentPage === TOTAL_PAGES);
-            }
-
-            // Zoom functionality
-            function updateZoom() {
-                const bookWrapper = $("#bookWrapper"); // Always target bookWrapper now
-
-                if (currentZoom === 1) {
-                    panOffsetX = 0;
-                    panOffsetY = 0;
-                }
-
-                if (currentZoom > 1) {
-                    bookWrapper.css("cursor", "grab");
-                } else {
-                    bookWrapper.css("cursor", "pointer");
-                }
-
-                // Apply transform to the flipbook element directly
-                $("#flipbook").css("transform", `scale(${currentZoom}) translate(${panOffsetX}px, ${panOffsetY}px)`);
-                $("#zoomLevel").text(`${Math.round(currentZoom * 100)}%`);
-
-                $("#zoomOutBtn").prop("disabled", currentZoom <= 1);
-                $("#zoomInBtn").prop("disabled", currentZoom >= 2);
-                $("#resetBtn").prop("disabled", currentZoom === 1 && panOffsetX === 0 && panOffsetY === 0);
-            }
-
-            // Event handlers
-            $("#prevBtn").click(function() {
-                $("#flipbook").turn("previous");
-            });
-
-            $("#nextBtn").click(function() {
-                $("#flipbook").turn("next");
-            });
-
-            $("#zoomInBtn").click(function() {
-                if (currentZoom < 2) {
-                    currentZoom = Math.min(2, currentZoom + 0.1);
-                    updateZoom();
-                }
-            });
-
-            $("#zoomOutBtn").click(function() {
-                if (currentZoom > 1) {
-                    currentZoom = Math.max(1, currentZoom - 0.1);
-                    updateZoom();
-                }
-            });
-
-            $("#resetBtn").click(function() {
-                currentZoom = 1;
-                panOffsetX = 0;
-                panOffsetY = 0;
-                updateZoom();
-            });
-
-            // Mobile specific tap logic (using Turn.js internal swipe)
-            $("#flipbook").on('touchstart', function(e) {
-                 if (currentZoom > 1) {
-                    isPanning = true;
-                    panStartX = e.originalEvent.touches[0].clientX - panOffsetX;
-                    panStartY = e.originalEvent.touches[0].clientY - panOffsetY;
-                    // Allow Turn.js to handle default behavior for non-panning
-                 } else {
-                    // For non-zoomed state, record touch start for swipe detection
-                    isPotentialSwipe = true;
-                    swipeStartX = e.originalEvent.touches[0].clientX;
-                    swipeStartTime = Date.now();
-                 }
-            }).on('touchend', function(e) {
-                if (currentZoom > 1) {
-                    isPanning = false;
-                } else if (isPotentialSwipe) {
-                    isPotentialSwipe = false;
-                    const swipeEndX = e.originalEvent.changedTouches[0].clientX;
-                    const deltaX = swipeEndX - swipeStartX;
-                    const swipeDuration = Date.now() - swipeStartTime;
-
-                    // Apply swipe logic if conditions met
-                    if (swipeDuration < SWIPE_TIME_THRESHOLD && Math.abs(deltaX) > SWIPE_THRESHOLD_X) {
-                        if (deltaX < 0) {
-                            $("#flipbook").turn("next");
-                        } else {
-                            $("#flipbook").turn("previous");
-                        }
-                    }
-                }
-            }).on('touchmove', function(e) {
-                if (currentZoom > 1) {
-                    // Pan logic handled above in `touchmove.pan`
-                } else if (isPotentialSwipe) {
-                    // Prevent default touchmove to avoid scrolling the page
-                    // but allow Turn.js to handle its own drag animation
-                    e.preventDefault(); 
-                }
-            });
-
-
-            // Mouse drag/swipe functionality for desktop (and now mobile if mouse used)
-            $("#bookWrapper").on('mousedown', function(e) {
-                if (currentZoom > 1) {
-                    isPanning = true;
-                    panStartX = e.clientX - panOffsetX;
-                    panStartY = e.clientY - panOffsetY;
-                    $(this).css("cursor", "grabbing");
-                    e.preventDefault();
-                } else {
-                    isPotentialSwipe = true;
-                    swipeStartX = e.clientX;
-                    swipeStartTime = Date.now();
-                    e.preventDefault(); 
-                }
-            }).on('mouseup', function(e) {
-                if (isPotentialSwipe) {
-                    isPotentialSwipe = false;
-                    const swipeEndX = e.clientX;
-                    const deltaX = swipeEndX - swipeStartX;
-                    const swipeDuration = Date.now() - swipeStartTime;
-
-                    if (swipeDuration < SWIPE_TIME_THRESHOLD && Math.abs(deltaX) > SWIPE_THRESHOLD_X) {
-                        if (deltaX < 0) {
-                            $("#flipbook").turn("next");
-                        } else {
-                            $("#flipbook").turn("previous");
-                        }
-                    }
-                }
-            }).on('mouseleave', function(e) {
-                if (isPotentialSwipe) {
-                    isPotentialSwipe = false;
-                }
-            });
-
-            // Desktop Pan handler
-            $(document).on('mousemove', function(e) {
-                if (isPanning && currentZoom > 1) {
-                    panOffsetX = e.clientX - panStartX;
-                    panOffsetY = e.clientY - panStartY;
-
-                    const size = calculateOptimalSize();
-                    const contentWidth = currentDisplayMode === 'double' ? size.width / 2 : size.width; 
-                    const contentHeight = size.height;
-                    const maxPanX = (contentWidth * currentZoom - contentWidth) / 2;
-                    const maxPanY = (contentHeight * currentZoom - contentHeight) / 2;
-
-                    panOffsetX = Math.max(-maxPanX, Math.min(maxPanX, panOffsetX));
-                    panOffsetY = Math.max(-maxPanY, Math.min(maxPanY, panOffsetY));
-
-                    $("#flipbook").css("transform", `scale(${currentZoom}) translate(${panOffsetX}px, ${panOffsetY}px)`);
-                }
-            });
-
-            $(document).on('mouseup', function(e) {
-                if (isPanning) {
-                    isPanning = false;
-                    $("#bookWrapper").css("cursor", currentZoom > 1 ? "grab" : "pointer");
-                }
-            });
-
-            // Keyboard navigation
-            $(document).keydown(function(e) {
-                if (e.keyCode === 37) { // Left arrow
-                    $("#flipbook").turn("previous");
-                } else if (e.keyCode === 39) { // Right arrow
-                    $("#flipbook").turn("next");
-                } else if (e.keyCode === 187 || e.keyCode === 107) { // Plus or Numpad Plus
-                    e.preventDefault();
-                    $("#zoomInBtn").click(); 
-                } else if (e.keyCode === 189 || e.keyCode === 109) { // Minus or Numpad Minus
-                    e.preventDefault();
-                    $("#zoomOutBtn").click(); 
-                } else if (e.keyCode === 68 && e.ctrlKey) { // Ctrl + D
-                    e.preventDefault();
-                    debugMode = !debugMode;
-                    debug("Debug mode " + (debugMode ? "enabled" : "disabled"));
-                }
-            });
-
-            // Mouse wheel zoom and scroll-to-flip
-            $("#bookWrapper").on('wheel', function(e) { // Now #bookWrapper handles all wheel events
-                if (currentZoom === 1) { // Not zoomed, scroll to flip
-                    if (!e.ctrlKey) {
-                        e.preventDefault();
-                        if (e.originalEvent.deltaY > 0) {
-                            $("#flipbook").turn("next");
-                        } else {
-                            $("#flipbook").turn("previous");
-                        }
-                    } else { // Ctrl key, zoom
+                
+                // Mouse wheel functionality
+                $('#bookWrapper').off('wheel.flipbook').on('wheel.flipbook', function(e) {
+                    if (e.ctrlKey) {
+                        // Ctrl+wheel zooms
                         e.preventDefault();
                         if (e.originalEvent.deltaY < 0) {
-                            $("#zoomInBtn").click();
+                            zoomIn();
                         } else {
-                            $("#zoomOutBtn").click();
+                            zoomOut();
+                        }
+                    } else if (currentZoom === 1) {
+                        // Not zoomed, scroll to flip
+                        e.preventDefault();
+                        if (e.originalEvent.deltaY > 0) {
+                            $('#flipbook').turn('next');
+                        } else {
+                            $('#flipbook').turn('previous');
                         }
                     }
-                } else if (currentZoom > 1 && !e.ctrlKey) { // Zoomed in, wheel without Ctrl pans
-                    e.preventDefault();
-                    const sensitivity = 0.5;
-                    panOffsetX -= e.originalEvent.deltaX * sensitivity;
-                    panOffsetY -= e.originalEvent.deltaY * sensitivity;
-
-                    const size = calculateOptimalSize();
-                    const contentWidth = currentDisplayMode === 'double' ? size.width / 2 : size.width;
-                    const contentHeight = size.height;
-                    const maxPanX = (contentWidth * currentZoom - contentWidth) / 2;
-                    const maxPanY = (contentHeight * currentZoom - contentHeight) / 2;
-
-                    panOffsetX = Math.max(-maxPanX, Math.min(maxPanX, panOffsetX));
-                    panOffsetY = Math.max(-maxPanY, Math.min(maxPanY, panOffsetY));
-
-                    $("#flipbook").css("transform", `scale(${currentZoom}) translate(${panOffsetX}px, ${panOffsetY}px)`);
-
-                } else if (e.ctrlKey) { // Ctrl+wheel zooms 
-                    e.preventDefault();
-                    if (e.originalEvent.deltaY < 0) {
-                        $("#zoomInBtn").click();
+                });
+                
+                // Enhanced custom drag implementation
+                $('#bookWrapper').off('mousedown.customDrag mousemove.customDrag mouseup.customDrag mouseleave.customDrag');
+                
+                // Mouse down handler
+                $('#bookWrapper').on('mousedown.customDrag', function(e) {
+                    if (currentZoom > 1) {
+                        // Panning logic for zoomed state
+                        isPanning = true;
+                        panStartX = e.clientX;
+                        panStartY = e.clientY;
+                        panStartOffsetX = panOffsetX;
+                        panStartOffsetY = panOffsetY;
+                        $('#bookWrapper').addClass('grabbing');
+                        e.preventDefault();
                     } else {
-                        $("#zoomOutBtn").click();
+                        // Custom swipe detection for normal zoom
+                        isPotentialSwipe = true;
+                        swipeStartX = e.clientX;
+                        swipeStartTime = Date.now();
+                        e.preventDefault();
                     }
+                });
+                
+                // Global mouse move handler for smooth panning
+                $(document).off('mousemove.customDrag').on('mousemove.customDrag', function(e) {
+                    if (isPanning && currentZoom > 1) {
+                        // Panning logic when zoomed in
+                        const deltaX = e.clientX - panStartX;
+                        const deltaY = e.clientY - panStartY;
+                        // Increase pan sensitivity by multiplying by 1.5
+                        panOffsetX = panStartOffsetX + (deltaX / currentZoom) * 1.5;
+                        panOffsetY = panStartOffsetY + (deltaY / currentZoom) * 1.5;
+                        updateZoom();
+                        e.preventDefault();
+                    }
+                });
+                
+                // Mouse up handler
+                $('#bookWrapper').on('mouseup.customDrag mouseleave.customDrag', function(e) {
+                    if (isPanning) {
+                        isPanning = false;
+                        $('#bookWrapper').removeClass('grabbing');
+                    } else if (isPotentialSwipe) {
+                        isPotentialSwipe = false;
+                        const swipeEndX = e.clientX;
+                        const deltaX = swipeEndX - swipeStartX;
+                        const swipeDuration = Date.now() - swipeStartTime;
+                        
+                        // Check if drag meets threshold criteria
+                        if (swipeDuration < SWIPE_TIME_THRESHOLD && Math.abs(deltaX) > SWIPE_THRESHOLD_X) {
+                            if (deltaX < 0) {
+                                $('#flipbook').turn('next');  // Drag left = next page
+                            } else {
+                                $('#flipbook').turn('previous'); // Drag right = previous page
+                            }
+                        }
+                    }
+                });
+            }
+            
+            // Initialize the flipbook
+            function initFlipbook() {
+                console.log('Initializing flipbook...');
+                
+                const dimensions = getDimensions();
+                console.log('Dimensions:', dimensions);
+                
+                // Store content dimensions
+                contentWidth = dimensions.width;
+                contentHeight = dimensions.height;
+                
+                // Create pages HTML
+                let pagesHTML = '';
+                for (let i = 1; i <= totalImages; i++) {
+                    const pageNum = i.toString().padStart(2, '0');
+                    const imageSrc = `images/Page-${pageNum}.webp`;
+                    pagesHTML += `<div class="page"><img src="${imageSrc}" alt="Page ${i}" onload="imageLoaded()" onerror="imageError(this)"></div>`;
+                }
+                
+                $('#flipbook').html(pagesHTML);
+                
+                // Initialize Turn.js
+                try {
+                    $('#flipbook').turn({
+                        width: dimensions.width,
+                        height: dimensions.height,
+                        autoCenter: true,
+                        display: dimensions.display,
+                        acceleration: true,
+                        gradients: true,
+                        elevation: 50,
+                        when: {
+                            turned: function(event, page) {
+                                updatePageInfo(page);
+                                // Hide translucent pages on first and last pages
+                                hideGhostPages(page);
+                            },
+                            turning: function(event, page, view) {
+                                // Clear any existing ghost page hiding during turn
+                                if (ghostPageHideTimeout) {
+                                    clearTimeout(ghostPageHideTimeout);
+                                }
+                            },
+                            end: function(event, page, view) {
+                                // Ensure ghost pages are hidden after turn completes
+                                hideGhostPages(page);
+                            }
+                        }
+                    });
+                    
+                    console.log('Turn.js initialized');
+                    flipbookInitialized = true;
+                    
+                    // Setup interaction based on device type
+                    setupInteractions();
+                    
+                    updatePageInfo(1);
+                    updateZoom();
+                    
+                    // Initial ghost page hiding
+                    setTimeout(function() {
+                        hideGhostPages(1);
+                    }, 200);
+                    
+                    // Hide loading screen after a short delay
+                    setTimeout(function() {
+                        $('#loadingScreen').fadeOut(500);
+                    }, 1000);
+                    
+                } catch (error) {
+                    console.error('Error initializing Turn.js:', error);
+                    $('#loadingScreen').html('<div class="error-message">Error initializing flipbook: ' + error.message + '</div>');
+                }
+            }
+            
+            // Setup interactions based on device type
+            function setupInteractions() {
+                if ($(window).width() <= 1024) { // Mobile - No controls shown
+                    addMobileSwipeSupport();
+                    $('#controls').hide();
+                    $('#zoomControls').hide();
+                    $('#keyboardHint').hide();
+                } else { // Desktop - Show all controls
+                    addDesktopInteractions();
+                    $('#controls').show();
+                    $('#zoomControls').show();
+                    $('#keyboardHint').show();
+                }
+            }
+            
+            // Update page info
+            function updatePageInfo(page) {
+                $('#pageInfo').text(`Page ${page} of ${totalImages}`);
+                $('#prevBtn').prop('disabled', page <= 1);
+                $('#nextBtn').prop('disabled', page >= totalImages);
+            }
+            
+            // Control buttons
+            $('#prevBtn').click(function() {
+                if (flipbookInitialized) {
+                    $('#flipbook').turn('previous');
                 }
             });
-
-
-            // Responsive handling
-            function resizeHandler() {
-                initializeBookView();
-            }
-
+            
+            $('#nextBtn').click(function() {
+                if (flipbookInitialized) {
+                    $('#flipbook').turn('next');
+                }
+            });
+            
+            // Zoom controls
+            $('#zoomInBtn').click(function() {
+                zoomIn();
+            });
+            
+            $('#zoomOutBtn').click(function() {
+                zoomOut();
+            });
+            
+            $('#resetZoomBtn').click(function() {
+                resetZoom();
+            });
+            
+            // Handle window resize
             $(window).resize(function() {
-                clearTimeout(this.resizeTimeout);
-                this.resizeTimeout = setTimeout(resizeHandler, 200);
+                if (flipbookInitialized) {
+                    setTimeout(function() {
+                        const dimensions = getDimensions();
+                        contentWidth = dimensions.width;
+                        contentHeight = dimensions.height;
+                        $('#flipbook').turn('size', dimensions.width, dimensions.height);
+                        $('#flipbook').turn('display', dimensions.display);
+                        
+                        // Reset zoom and pan on resize
+                        resetZoom();
+                        
+                        // Re-setup interactions for new window size
+                        setupInteractions();
+                        
+                        // Hide ghost pages after resize
+                        const currentPage = $('#flipbook').turn('page');
+                        hideGhostPages(currentPage);
+                    }, 100);
+                }
             });
-
-
+            
+            // Prevent context menu on right click
+            $('#bookWrapper').contextmenu(function(e) {
+                e.preventDefault();
+            });
+            
             // Initial setup
-            initializeBookView();
-            // Initial preload: load the first page and its immediate neighbors
-            Promise.all([
-                loadImage(1),
-                loadImage(2),
-                loadImage(3),
-                loadImage(4)
-            ]).then(() => {
-                debug("Initial pages loaded. Starting further preloads.");
-                preloadPages(currentPage);
-            }).catch(error => {
-                console.error("Error during initial page load:", error);
-            });
-
-            debug("Optimized flipbook initialized with responsive view.");
+            updateProgress(imagesLoaded, totalImages);
+            initFlipbook();
         });
     </script>
 </body>
